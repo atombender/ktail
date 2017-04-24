@@ -1,0 +1,12 @@
+package: github.com/atombender/ktail
+import:
+- package: k8s.io/client-go
+  version: ~2.0.0
+  subpackages:
+  - kubernetes
+  - pkg/api/v1
+  - tools/clientcmd
+- package: github.com/jpillora/backoff
+- package: github.com/fatih/color
+  version: ~1.4.1
+- package: github.com/spf13/pflag
