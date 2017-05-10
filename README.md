@@ -2,18 +2,25 @@
 
 ktail is a tool to tail Kubernetes logs. It's like `kubectl logs`, with the following additional features and improvements:
 
-* ktail can tail multiple pods/containers at the same time, based on labels
-* All containers are tailed by default, not just a specific one (`kubectl` requires `-c`)
+* ktail will detect pods and containers as they come and go (`kubect` only works on a running pod/container)
+* ktail tails multiple pods and containers at the same time, based on labels (`kubectl` can only tail a single pod and container)
+* All pod containers are tailed by default, not just a specific one (`kubectl` requires `-c`)
 * ktail will try hard to keep running in the presence of failures
-* ktail will pods as they come and go
+* ktail will retry until a container's logs are available
 * Template-based output formatting
 
 Unlike `kubectl logs`, ktail can currently not get historical logs.
 
 # Installation
 
+Currently, it must be installed from source:
+
 ```shell
-go get github.com/atombender/ktail
+$ mkdir -p $GOPATH/src/github.com/atombender
+$ cd $GOPATH/src/github.com/atombender
+$ git clone https://github.com/atombender/ktail
+$ cd ktail
+$ glide install --strip-vendor
 ```
 
 # Usage
