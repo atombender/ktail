@@ -2,3 +2,4 @@ vendor
 build
 dist/
 /ktail-*.tar.gz
+homebrew

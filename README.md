@@ -13,7 +13,15 @@ Unlike `kubectl logs`, ktail can currently not get historical logs.
 
 # Installation
 
-Currently, it must be installed from source:
+## Homebrew
+
+```shell
+$ brew install atombender/ktail/ktail
+```
+
+## From source
+
+This requires [Glide](https://glide.sh/) and Go >= 1.7.
 
 ```shell
 $ mkdir -p $GOPATH/src/github.com/atombender
