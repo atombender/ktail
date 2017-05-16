@@ -16,6 +16,7 @@ Unlike `kubectl logs`, ktail can currently not get historical logs.
 ## Homebrew
 
 ```shell
+$ brew tap atombender/ktail
 $ brew install atombender/ktail/ktail
 ```
 
