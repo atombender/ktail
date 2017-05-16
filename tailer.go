@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/jpillora/backoff"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
