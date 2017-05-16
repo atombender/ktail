@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"text/template"
 
 	"github.com/fatih/color"
@@ -23,6 +24,7 @@ func main() {
 		quiet             bool
 		timestamps        bool
 		tmplString        string
+		containerPatterns []*regexp.Regexp
 	)
 
 	flags := pflag.NewFlagSet("ktail", pflag.ExitOnError)
@@ -43,6 +45,15 @@ func main() {
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+
+	for _, arg := range flags.Args() {
+		r, err := regexp.Compile(arg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid regexp: %q: %s\n", arg, err)
+			os.Exit(1)
+		}
+		containerPatterns = append(containerPatterns, r)
 	}
 
 	if tmplString == "" {
@@ -131,6 +142,17 @@ func main() {
 	}
 
 	controller := NewController(clientset, namespace, labelSelector,
+		func(pod *v1.Pod, container *v1.Container) bool {
+			if len(containerPatterns) == 0 {
+				return true
+			}
+			for _, r := range containerPatterns {
+				if r.MatchString(pod.Name) || r.MatchString(container.Name) {
+					return true
+				}
+			}
+			return false
+		},
 		func(event LogEvent) {
 			tmpl.Execute(os.Stdout, event)
 		},

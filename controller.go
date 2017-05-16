@@ -12,9 +12,10 @@ import (
 )
 
 type (
-	ContainerEnterFunc func(pod *v1.Pod, container *v1.Container)
-	ContainerExitFunc  func(pod *v1.Pod, container *v1.Container)
-	ContainerErrorFunc func(pod *v1.Pod, container *v1.Container, err error)
+	ContainerFilterFunc func(pod *v1.Pod, container *v1.Container) bool
+	ContainerEnterFunc  func(pod *v1.Pod, container *v1.Container)
+	ContainerExitFunc   func(pod *v1.Pod, container *v1.Container)
+	ContainerErrorFunc  func(pod *v1.Pod, container *v1.Container, err error)
 )
 
 type Controller struct {
@@ -23,6 +24,7 @@ type Controller struct {
 	tailers       map[string]*ContainerTailer
 	namespace     string
 	labelSelector labels.Selector
+	filterFunc    ContainerFilterFunc
 	eventFunc     LogEventFunc
 	enterFunc     ContainerEnterFunc
 	exitFunc      ContainerExitFunc
@@ -33,6 +35,7 @@ func NewController(
 	clientset *kubernetes.Clientset,
 	namespace string,
 	labelSelector labels.Selector,
+	filterFunc ContainerFilterFunc,
 	eventFunc LogEventFunc,
 	enterFunc ContainerEnterFunc,
 	exitFunc ContainerExitFunc,
@@ -42,6 +45,7 @@ func NewController(
 		tailers:       map[string]*ContainerTailer{},
 		namespace:     namespace,
 		labelSelector: labelSelector,
+		filterFunc:    filterFunc,
 		eventFunc:     eventFunc,
 		enterFunc:     enterFunc,
 		exitFunc:      exitFunc,
@@ -72,8 +76,17 @@ func (ctl *Controller) onAdd(obj interface{}) {
 	if !ctl.labelSelector.Matches(labels.Set(pod.Labels)) {
 		return
 	}
+	any := false
 	for _, container := range pod.Spec.Containers {
-		ctl.addContainer(pod, &container)
+		if ctl.filterFunc(pod, &container) {
+			any = true
+			break
+		}
+	}
+	if any {
+		for _, container := range pod.Spec.Containers {
+			ctl.addContainer(pod, &container)
+		}
 	}
 }
 
@@ -113,9 +126,8 @@ func (ctl *Controller) deleteContainer(pod *v1.Pod, container *v1.Container) {
 	if tailer, ok := ctl.tailers[key]; ok {
 		delete(ctl.tailers, key)
 		tailer.Stop()
+		ctl.exitFunc(pod, container)
 	}
-
-	ctl.exitFunc(pod, container)
 }
 
 func buildKey(pod *v1.Pod, container *v1.Container) string {
