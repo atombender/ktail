@@ -12,11 +12,17 @@ import (
 )
 
 type (
-	ContainerFilterFunc func(pod *v1.Pod, container *v1.Container) bool
-	ContainerEnterFunc  func(pod *v1.Pod, container *v1.Container)
-	ContainerExitFunc   func(pod *v1.Pod, container *v1.Container)
-	ContainerErrorFunc  func(pod *v1.Pod, container *v1.Container, err error)
+	ContainerEnterFunc func(pod *v1.Pod, container *v1.Container) bool
+	ContainerExitFunc  func(pod *v1.Pod, container *v1.Container)
+	ContainerErrorFunc func(pod *v1.Pod, container *v1.Container, err error)
 )
+
+type Callbacks struct {
+	OnEvent LogEventFunc
+	OnEnter ContainerEnterFunc
+	OnExit  ContainerExitFunc
+	OnError ContainerErrorFunc
+}
 
 type Controller struct {
 	sync.Mutex
@@ -24,32 +30,20 @@ type Controller struct {
 	tailers       map[string]*ContainerTailer
 	namespace     string
 	labelSelector labels.Selector
-	filterFunc    ContainerFilterFunc
-	eventFunc     LogEventFunc
-	enterFunc     ContainerEnterFunc
-	exitFunc      ContainerExitFunc
-	errorFunc     ContainerErrorFunc
+	callbacks     Callbacks
 }
 
 func NewController(
 	clientset *kubernetes.Clientset,
 	namespace string,
 	labelSelector labels.Selector,
-	filterFunc ContainerFilterFunc,
-	eventFunc LogEventFunc,
-	enterFunc ContainerEnterFunc,
-	exitFunc ContainerExitFunc,
-	errorFunc ContainerErrorFunc) *Controller {
+	callbacks Callbacks) *Controller {
 	return &Controller{
 		clientset:     clientset,
 		tailers:       map[string]*ContainerTailer{},
 		namespace:     namespace,
 		labelSelector: labelSelector,
-		filterFunc:    filterFunc,
-		eventFunc:     eventFunc,
-		enterFunc:     enterFunc,
-		exitFunc:      exitFunc,
-		errorFunc:     errorFunc,
+		callbacks:     callbacks,
 	}
 }
 
@@ -76,17 +70,8 @@ func (ctl *Controller) onAdd(obj interface{}) {
 	if !ctl.labelSelector.Matches(labels.Set(pod.Labels)) {
 		return
 	}
-	any := false
 	for _, container := range pod.Spec.Containers {
-		if ctl.filterFunc(pod, &container) {
-			any = true
-			break
-		}
-	}
-	if any {
-		for _, container := range pod.Spec.Containers {
-			ctl.addContainer(pod, &container)
-		}
+		ctl.addContainer(pod, &container)
 	}
 }
 
@@ -101,17 +86,19 @@ func (ctl *Controller) onDelete(obj interface{}) {
 }
 
 func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container) {
-	ctl.enterFunc(pod, container)
+	if !ctl.callbacks.OnEnter(pod, container) {
+		return
+	}
 
 	ctl.Lock()
 	defer ctl.Unlock()
 
 	key := buildKey(pod, container)
 	if _, ok := ctl.tailers[key]; !ok {
-		tailer := NewContainerTailer(ctl.clientset, pod, container, ctl.eventFunc)
+		tailer := NewContainerTailer(ctl.clientset, pod, container, ctl.callbacks.OnEvent)
 		go func() {
 			if err := tailer.Run(); err != nil {
-				ctl.errorFunc(pod, container, err)
+				ctl.callbacks.OnError(pod, container, err)
 			}
 		}()
 		ctl.tailers[key] = tailer
@@ -126,7 +113,7 @@ func (ctl *Controller) deleteContainer(pod *v1.Pod, container *v1.Container) {
 	if tailer, ok := ctl.tailers[key]; ok {
 		delete(ctl.tailers, key)
 		tailer.Stop()
-		ctl.exitFunc(pod, container)
+		ctl.callbacks.OnExit(pod, container)
 	}
 }
 

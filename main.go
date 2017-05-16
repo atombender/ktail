@@ -144,35 +144,39 @@ func main() {
 
 	var stdoutMutex sync.Mutex
 	controller := NewController(clientset, namespace, labelSelector,
-		func(pod *v1.Pod, container *v1.Container) bool {
-			if len(containerPatterns) == 0 {
-				return true
-			}
-			for _, r := range containerPatterns {
-				if r.MatchString(pod.Name) || r.MatchString(container.Name) {
-					return true
+		Callbacks{
+			OnEvent: func(event LogEvent) {
+				stdoutMutex.Lock()
+				defer stdoutMutex.Unlock()
+				tmpl.Execute(os.Stdout, event)
+			},
+			OnEnter: func(pod *v1.Pod, container *v1.Container) bool {
+				if len(containerPatterns) > 0 {
+					match := false
+					for _, r := range containerPatterns {
+						if r.MatchString(pod.Name) || r.MatchString(container.Name) {
+							match = true
+							break
+						}
+					}
+					if !match {
+						return false
+					}
 				}
-			}
-			return false
-		},
-		func(event LogEvent) {
-			stdoutMutex.Lock()
-			defer stdoutMutex.Unlock()
-			tmpl.Execute(os.Stdout, event)
-		},
-		func(pod *v1.Pod, container *v1.Container) {
-			if !quiet {
-				yellow.Fprintf(os.Stderr, "==> Detected container %s\n", formatPodAndContainer(pod, container))
-			}
-		},
-		func(pod *v1.Pod, container *v1.Container) {
-			if !quiet {
-				yellow.Fprintf(os.Stderr, "==> Leaving container %s\n", formatPodAndContainer(pod, container))
-			}
-		},
-		func(pod *v1.Pod, container *v1.Container, err error) {
-			red.Fprintf(os.Stderr, "==> Warning: Error while container %s: %s\n",
-				formatPodAndContainer(pod, container), err)
+				if !quiet {
+					yellow.Fprintf(os.Stderr, "==> Detected container %s\n", formatPodAndContainer(pod, container))
+				}
+				return true
+			},
+			OnExit: func(pod *v1.Pod, container *v1.Container) {
+				if !quiet {
+					yellow.Fprintf(os.Stderr, "==> Leaving container %s\n", formatPodAndContainer(pod, container))
+				}
+			},
+			OnError: func(pod *v1.Pod, container *v1.Container, err error) {
+				red.Fprintf(os.Stderr, "==> Warning: Error while container %s: %s\n",
+					formatPodAndContainer(pod, container), err)
+			},
 		})
 	controller.Run()
 }
