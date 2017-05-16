@@ -25,3 +25,8 @@ dist: build
 	mkdir -p dist
 	cp LICENSE README.md build/ktail dist/
 	tar cvfz $(NAME)-$(VERSION)-$(ARCH).tar.gz -C dist .
+
+.PHONY: release
+release: dist
+	if ! git tag -l | fgrep v$(VERSION); then (git tag v$(VERSION)); fi
+	hub release create -a ktail-$(VERSION)-$(ARCH).tar.gz -m "Released $(VERSION)." v$(VERSION)

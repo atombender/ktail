@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync"
 	"text/template"
 
 	"github.com/fatih/color"
@@ -141,6 +142,7 @@ func main() {
 		return fmt.Sprintf("%s:%s", formatPod(pod), container.Name)
 	}
 
+	var stdoutMutex sync.Mutex
 	controller := NewController(clientset, namespace, labelSelector,
 		func(pod *v1.Pod, container *v1.Container) bool {
 			if len(containerPatterns) == 0 {
@@ -154,6 +156,8 @@ func main() {
 			return false
 		},
 		func(event LogEvent) {
+			stdoutMutex.Lock()
+			defer stdoutMutex.Unlock()
 			tmpl.Execute(os.Stdout, event)
 		},
 		func(pod *v1.Pod, container *v1.Container) {
