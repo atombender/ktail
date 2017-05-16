@@ -1,7 +1,7 @@
 .PHONY: default
 default: build
 
-VERSION := 0.2.0
+VERSION := 0.3.0
 NAME := ktail
 ARCH := $(shell uname -m)
 
