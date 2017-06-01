@@ -175,7 +175,7 @@ func main() {
 				}
 			},
 			OnError: func(pod *v1.Pod, container *v1.Container, err error) {
-				red.Fprintf(os.Stderr, "==> Warning: Error while container %s: %s\n",
+				red.Fprintf(os.Stderr, "==> Warning: Error while tailing container %s: %s\n",
 					formatPodAndContainer(pod, container), err)
 			},
 		})
