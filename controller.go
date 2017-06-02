@@ -94,15 +94,19 @@ func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container) {
 	defer ctl.Unlock()
 
 	key := buildKey(pod, container)
-	if _, ok := ctl.tailers[key]; !ok {
-		tailer := NewContainerTailer(ctl.clientset, pod, container, ctl.callbacks.OnEvent)
-		go func() {
-			if err := tailer.Run(); err != nil {
-				ctl.callbacks.OnError(pod, container, err)
-			}
-		}()
-		ctl.tailers[key] = tailer
+	if _, ok := ctl.tailers[key]; ok {
+		return
 	}
+
+	targetPod, targetContainer := *pod, *container // Copy to avoid mutation
+
+	tailer := NewContainerTailer(ctl.clientset, targetPod, targetContainer, ctl.callbacks.OnEvent)
+	go func() {
+		if err := tailer.Run(); err != nil {
+			ctl.callbacks.OnError(&targetPod, &targetContainer, err)
+		}
+	}()
+	ctl.tailers[key] = tailer
 }
 
 func (ctl *Controller) deleteContainer(pod *v1.Pod, container *v1.Container) {

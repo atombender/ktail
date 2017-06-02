@@ -24,8 +24,8 @@ type LogEventFunc func(LogEvent)
 
 func NewContainerTailer(
 	clientset *kubernetes.Clientset,
-	pod *v1.Pod,
-	container *v1.Container,
+	pod v1.Pod,
+	container v1.Container,
 	eventFunc LogEventFunc) *ContainerTailer {
 	return &ContainerTailer{
 		clientset: clientset,
@@ -37,8 +37,8 @@ func NewContainerTailer(
 
 type ContainerTailer struct {
 	clientset *kubernetes.Clientset
-	pod       *v1.Pod
-	container *v1.Container
+	pod       v1.Pod
+	container v1.Container
 	stop      bool
 	eventFunc LogEventFunc
 }
@@ -79,20 +79,23 @@ func (ct *ContainerTailer) receiveLine(s string) {
 	}
 
 	ct.eventFunc(LogEvent{
-		Pod:       ct.pod,
-		Container: ct.container,
+		Pod:       &ct.pod,
+		Container: &ct.container,
 		Timestamp: timestamp,
 		Message:   parts[1],
 	})
 }
 
 func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
+	sinceSeconds := int64(1)
+
 	boff := &backoff.Backoff{}
 	for {
 		stream, err := ct.clientset.Core().Pods(ct.pod.Namespace).GetLogs(ct.pod.Name, &v1.PodLogOptions{
-			Container:  ct.container.Name,
-			Follow:     true,
-			Timestamps: true,
+			Container:    ct.container.Name,
+			Follow:       true,
+			Timestamps:   true,
+			SinceSeconds: &sinceSeconds,
 		}).Stream()
 		if err != nil {
 			if status, ok := err.(errors.APIStatus); ok {
