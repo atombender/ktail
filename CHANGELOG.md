@@ -1,12 +1,18 @@
+# [v0.5.0](https://github.com/atombender/ktail/releases/tag/v0.5.0) (2017-06-01)
+
+## Fixes
+
+* Fix concurrent mutation bug, causing wrong pod/container to be followed.
+
 # [v0.4.0](https://github.com/atombender/ktail/releases/tag/v0.4.0) (2017-06-01)
 
-## Features
+## Fixes
 
 * Fix a weird edge case where logs would sometimes not appear.
 
 # [v0.3.0](https://github.com/atombender/ktail/releases/tag/v0.3.0) (2017-05-16)
 
-## Features
+## Fixes
 
 * Upgrade to newer Kubernetes client library, which fixes issues with the `gcp` auth provider.
 
