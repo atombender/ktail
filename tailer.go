@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"io"
-	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -88,15 +87,12 @@ func (ct *ContainerTailer) receiveLine(s string) {
 }
 
 func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
-	sinceSeconds := int64(math.Ceil(5.0 / float64(time.Second)))
-
 	boff := &backoff.Backoff{}
 	for {
 		stream, err := ct.clientset.Core().Pods(ct.pod.Namespace).GetLogs(ct.pod.Name, &v1.PodLogOptions{
-			Container:    ct.container.Name,
-			Follow:       true,
-			SinceSeconds: &sinceSeconds,
-			Timestamps:   true,
+			Container:  ct.container.Name,
+			Follow:     true,
+			Timestamps: true,
 		}).Stream()
 		if err != nil {
 			if status, ok := err.(errors.APIStatus); ok {
