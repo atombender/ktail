@@ -1,3 +1,15 @@
+# [v0.4.0](https://github.com/atombender/ktail/releases/tag/v0.4.0) (2017-06-01)
+
+## Features
+
+* Fix a weird edge case where logs would sometimes not appear.
+
+# [v0.3.0](https://github.com/atombender/ktail/releases/tag/v0.3.0) (2017-05-16)
+
+## Features
+
+* Fix a weird edge case where logs would sometimes not appear.
+
 # [v0.2.0](https://github.com/atombender/ktail/releases/tag/v0.2.0) (2017-05-16)
 
 ## Features
