@@ -15,10 +15,13 @@ GO_SRC := $(shell find . -name '*.go' -type f | fgrep -v ./vendor/ | fgrep -v '$
 .PHONY: build
 build: $(BUILD_DIR)/ktail
 
-$(BUILD_DIR)/ktail: $(GO_SRC)
+$(BUILD_DIR):
+	mkdir $(BUILD_DIR)
+
+$(BUILD_DIR)/ktail: $(BUILD_DIR) $(GO_SRC)
 	mkdir -p $(GOPATH)/src/github.com/atombender
 	ln -sf $(PWD) $(GOPATH)/src/github.com/atombender/ktail
-	$(GO) build -o ${BUILD_DIR}/ktail github.com/atombender/ktail
+	$(GO) build -i -o ${BUILD_DIR}/ktail github.com/atombender/ktail
 
 .PHONY: dist
 dist: build
@@ -30,3 +33,7 @@ dist: build
 release: dist
 	if ! git tag -l | fgrep v$(VERSION); then (git tag v$(VERSION)); fi
 	hub release create -a ktail-$(VERSION)-$(ARCH).tar.gz -m "Released $(VERSION)." v$(VERSION)
+
+.PHONY: clean
+clean: $(BUILD_DIR)
+	rm -f $(BUILD_DIR)/ktail
