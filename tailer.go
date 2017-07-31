@@ -56,21 +56,40 @@ func (ct *ContainerTailer) Run() error {
 		if stream == nil {
 			break
 		}
-
-		sc := bufio.NewScanner(stream)
-		for sc.Scan() {
-			ct.receiveLine(sc.Text())
-		}
-		_ = stream.Close()
-
-		if err := sc.Err(); err != nil {
+		if err := ct.runStream(stream); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
+	defer func() {
+		_ = stream.Close()
+	}()
+
+	r := bufio.NewReader(stream)
+	for {
+		line, err := r.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		ct.receiveLine(line)
+	}
+	return nil
+}
+
 func (ct *ContainerTailer) receiveLine(s string) {
+	if len(s) > 0 && s[len(s)-1] == '\n' {
+		s = s[0 : len(s)-1]
+	}
+	for len(s) > 0 && s[len(s)-1] == '\r' {
+		s = s[0 : len(s)-1]
+	}
+
 	parts := strings.SplitN(s, " ", 2)
 
 	var timestamp *time.Time
