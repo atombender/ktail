@@ -120,19 +120,19 @@ func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
 			Timestamps:   true,
 			SinceSeconds: &sinceSeconds,
 		}).Stream()
-		if err != nil {
-			if status, ok := err.(errors.APIStatus); ok {
-				// This will happen if the pod isn't ready for log-reading yet
-				switch status.Status().Code {
-				case http.StatusBadRequest:
-					time.Sleep(boff.Duration())
-					continue
-				case http.StatusNotFound:
-					return nil, nil
-				}
-			}
-			return nil, err
+		if err == nil {
+			return stream, nil
 		}
-		return stream, nil
+		if status, ok := err.(errors.APIStatus); ok {
+			// This will happen if the pod isn't ready for log-reading yet
+			switch status.Status().Code {
+			case http.StatusBadRequest:
+				time.Sleep(boff.Duration())
+				continue
+			case http.StatusNotFound:
+				return nil, nil
+			}
+		}
+		return nil, err
 	}
 }
