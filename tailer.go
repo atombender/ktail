@@ -91,6 +91,10 @@ func (ct *ContainerTailer) receiveLine(s string) {
 	}
 
 	parts := strings.SplitN(s, " ", 2)
+	if len(parts) < 2 {
+		// TODO: Warn?
+		return
+	}
 
 	var timestamp *time.Time
 	if t, err := time.Parse(time.RFC3339Nano, parts[0]); err == nil {
