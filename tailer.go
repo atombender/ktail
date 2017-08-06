@@ -9,6 +9,7 @@ import (
 
 	"github.com/jpillora/backoff"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 )
@@ -26,21 +27,24 @@ func NewContainerTailer(
 	clientset *kubernetes.Clientset,
 	pod v1.Pod,
 	container v1.Container,
-	eventFunc LogEventFunc) *ContainerTailer {
+	eventFunc LogEventFunc,
+	newlyCreatedPod bool) *ContainerTailer {
 	return &ContainerTailer{
-		clientset: clientset,
-		pod:       pod,
-		container: container,
-		eventFunc: eventFunc,
+		clientset:     clientset,
+		pod:           pod,
+		container:     container,
+		eventFunc:     eventFunc,
+		fromBeginning: newlyCreatedPod,
 	}
 }
 
 type ContainerTailer struct {
-	clientset *kubernetes.Clientset
-	pod       v1.Pod
-	container v1.Container
-	stop      bool
-	eventFunc LogEventFunc
+	clientset     *kubernetes.Clientset
+	pod           v1.Pod
+	container     v1.Container
+	stop          bool
+	eventFunc     LogEventFunc
+	fromBeginning bool
 }
 
 func (ct *ContainerTailer) Stop() {
@@ -110,17 +114,24 @@ func (ct *ContainerTailer) receiveLine(s string) {
 }
 
 func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
-	sinceSeconds := int64(1)
+	var sinceTime *metav1.Time
+	if !ct.fromBeginning {
+		t := metav1.Time{
+			Time: time.Now().Add(-1 * time.Second),
+		}
+		sinceTime = &t
+	}
 
 	boff := &backoff.Backoff{}
 	for {
 		stream, err := ct.clientset.Core().Pods(ct.pod.Namespace).GetLogs(ct.pod.Name, &v1.PodLogOptions{
-			Container:    ct.container.Name,
-			Follow:       true,
-			Timestamps:   true,
-			SinceSeconds: &sinceSeconds,
+			Container:  ct.container.Name,
+			Follow:     true,
+			Timestamps: true,
+			SinceTime:  sinceTime,
 		}).Stream()
 		if err == nil {
+			ct.fromBeginning = false // We have now started
 			return stream, nil
 		}
 		if status, ok := err.(errors.APIStatus); ok {

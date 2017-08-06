@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -51,10 +52,28 @@ func (ctl *Controller) Run() {
 	podListWatcher := cache.NewListWatchFromClient(
 		ctl.clientset.CoreV1Client.RESTClient(), "pods", ctl.namespace, fields.Everything())
 
+	obj, err := podListWatcher.List(metav1.ListOptions{})
+	if err != nil {
+		panic(err)
+	}
+	if podList, ok := obj.(*v1.PodList); ok {
+		for _, pod := range podList.Items {
+			ctl.onInitialAdd(&pod)
+		}
+	}
+
 	_, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
-		AddFunc:    ctl.onAdd,
+		AddFunc: func(obj interface{}) {
+			if pod, ok := obj.(*v1.Pod); ok {
+				ctl.onAdd(pod)
+			}
+		},
 		UpdateFunc: func(old interface{}, new interface{}) {},
-		DeleteFunc: ctl.onDelete,
+		DeleteFunc: func(obj interface{}) {
+			if pod, ok := obj.(*v1.Pod); ok {
+				ctl.onDelete(pod)
+			}
+		},
 	}, cache.Indexers{})
 
 	stopCh := make(chan struct{}, 1)
@@ -62,34 +81,31 @@ func (ctl *Controller) Run() {
 	<-stopCh
 }
 
-func (ctl *Controller) onAdd(obj interface{}) {
-	pod, ok := obj.(*v1.Pod)
-	if !ok {
-		return
-	}
+func (ctl *Controller) onInitialAdd(pod *v1.Pod) {
 	if !ctl.labelSelector.Matches(labels.Set(pod.Labels)) {
 		return
 	}
 	for _, container := range pod.Spec.Containers {
-		ctl.addContainer(pod, &container)
+		ctl.addContainer(pod, &container, true)
 	}
 }
 
-func (ctl *Controller) onDelete(obj interface{}) {
-	pod, ok := obj.(*v1.Pod)
-	if !ok {
+func (ctl *Controller) onAdd(pod *v1.Pod) {
+	if !ctl.labelSelector.Matches(labels.Set(pod.Labels)) {
 		return
 	}
+	for _, container := range pod.Spec.Containers {
+		ctl.addContainer(pod, &container, false)
+	}
+}
+
+func (ctl *Controller) onDelete(pod *v1.Pod) {
 	for _, container := range pod.Spec.Containers {
 		ctl.deleteContainer(pod, &container)
 	}
 }
 
-func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container) {
-	if !ctl.callbacks.OnEnter(pod, container) {
-		return
-	}
-
+func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, discoveryPhase bool) {
 	ctl.Lock()
 	defer ctl.Unlock()
 
@@ -98,9 +114,14 @@ func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container) {
 		return
 	}
 
+	if !ctl.callbacks.OnEnter(pod, container) {
+		return
+	}
+
 	targetPod, targetContainer := *pod, *container // Copy to avoid mutation
 
-	tailer := NewContainerTailer(ctl.clientset, targetPod, targetContainer, ctl.callbacks.OnEvent)
+	tailer := NewContainerTailer(ctl.clientset, targetPod, targetContainer, ctl.callbacks.OnEvent,
+		!discoveryPhase)
 	go func() {
 		if err := tailer.Run(); err != nil {
 			ctl.callbacks.OnError(&targetPod, &targetContainer, err)
