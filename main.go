@@ -64,7 +64,7 @@ func main() {
 			tmplString = "{{.Pod.Namespace}}/" + tmplString
 		}
 		if timestamps {
-			tmplString = "{{.Timestamp}}" + tmplString
+			tmplString = "{{.Timestamp}} " + tmplString
 		}
 	}
 	tmplString += "\n"
