@@ -149,9 +149,12 @@ func main() {
 			OnEvent: func(event LogEvent) {
 				stdoutMutex.Lock()
 				defer stdoutMutex.Unlock()
-				tmpl.Execute(os.Stdout, event)
+				_ = tmpl.Execute(os.Stdout, event)
 			},
-			OnEnter: func(pod *v1.Pod, container *v1.Container) bool {
+			OnEnter: func(
+				pod *v1.Pod,
+				container *v1.Container,
+				initialAddPhase bool) bool {
 				if len(containerPatterns) > 0 {
 					match := false
 					for _, r := range containerPatterns {
@@ -165,17 +168,39 @@ func main() {
 					}
 				}
 				if !quiet {
-					yellow.Fprintf(os.Stderr, "==> Detected container %s\n", formatPodAndContainer(pod, container))
+					if initialAddPhase {
+						_, _ = yellow.Fprintf(os.Stderr,
+							"==> Detected running container [%s]\n", formatPodAndContainer(pod, container))
+					} else {
+						_, _ = yellow.Fprintf(os.Stderr,
+							"==> New container [%s]\n", formatPodAndContainer(pod, container))
+					}
 				}
 				return true
 			},
 			OnExit: func(pod *v1.Pod, container *v1.Container) {
 				if !quiet {
-					yellow.Fprintf(os.Stderr, "==> Leaving container %s\n", formatPodAndContainer(pod, container))
+					var status = "unknown"
+					for _, containerStatus := range pod.Status.ContainerStatuses {
+						if containerStatus.Name == container.Name {
+							if containerStatus.State.Running != nil {
+								status = "running"
+							} else if containerStatus.State.Waiting != nil {
+								status = "waiting"
+							} else if containerStatus.State.Terminated != nil {
+								status = "terminated"
+							}
+							break
+						}
+					}
+					_, _ = yellow.Fprintf(os.Stderr,
+						"==> Container left (%s) [%s]\n", status,
+						formatPodAndContainer(pod, container))
 				}
 			},
 			OnError: func(pod *v1.Pod, container *v1.Container, err error) {
-				red.Fprintf(os.Stderr, "==> Warning: Error while tailing container %s: %s\n",
+				_, _ = red.Fprintf(os.Stderr,
+					"==> Warning: Error while tailing container [%s]: %s\n",
 					formatPodAndContainer(pod, container), err)
 			},
 		})

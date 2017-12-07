@@ -28,13 +28,14 @@ func NewContainerTailer(
 	pod v1.Pod,
 	container v1.Container,
 	eventFunc LogEventFunc,
-	newlyCreatedPod bool) *ContainerTailer {
+	fromTimestamp *time.Time) *ContainerTailer {
 	return &ContainerTailer{
 		clientset:     clientset,
 		pod:           pod,
 		container:     container,
 		eventFunc:     eventFunc,
-		fromBeginning: newlyCreatedPod,
+		fromTimestamp: fromTimestamp,
+		errorBackoff:  &backoff.Backoff{},
 	}
 }
 
@@ -44,27 +45,31 @@ type ContainerTailer struct {
 	container     v1.Container
 	stop          bool
 	eventFunc     LogEventFunc
-	fromBeginning bool
+	fromTimestamp *time.Time
+	errorBackoff  *backoff.Backoff
 }
 
 func (ct *ContainerTailer) Stop() {
 	ct.stop = true
 }
 
-func (ct *ContainerTailer) Run() error {
+func (ct *ContainerTailer) Run(onError func(err error)) {
+	ct.errorBackoff.Reset()
 	for !ct.stop {
 		stream, err := ct.getStream()
 		if err != nil {
-			return err
+			time.Sleep(ct.errorBackoff.Duration())
+			onError(err)
+			continue
 		}
 		if stream == nil {
 			break
 		}
 		if err := ct.runStream(stream); err != nil {
-			return err
+			onError(err)
+			time.Sleep(ct.errorBackoff.Duration())
 		}
 	}
-	return nil
 }
 
 func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
@@ -81,6 +86,7 @@ func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
 		if err != nil {
 			return err
 		}
+		ct.errorBackoff.Reset()
 		ct.receiveLine(line)
 	}
 	return nil
@@ -103,6 +109,10 @@ func (ct *ContainerTailer) receiveLine(s string) {
 	var timestamp *time.Time
 	if t, err := time.Parse(time.RFC3339Nano, parts[0]); err == nil {
 		timestamp = &t
+
+		// On restart, start from this timestamp. This isn't exact, however.
+		nextTimestamp := t.Add(time.Millisecond * 1)
+		ct.fromTimestamp = &nextTimestamp
 	}
 
 	ct.eventFunc(LogEvent{
@@ -115,11 +125,10 @@ func (ct *ContainerTailer) receiveLine(s string) {
 
 func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
 	var sinceTime *metav1.Time
-	if !ct.fromBeginning {
-		t := metav1.Time{
-			Time: time.Now().Add(-1 * time.Second),
+	if ct.fromTimestamp != nil {
+		sinceTime = &metav1.Time{
+			Time: *ct.fromTimestamp,
 		}
-		sinceTime = &t
 	}
 
 	boff := &backoff.Backoff{}
@@ -131,7 +140,6 @@ func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
 			SinceTime:  sinceTime,
 		}).Stream()
 		if err == nil {
-			ct.fromBeginning = false // We have now started
 			return stream, nil
 		}
 		if status, ok := err.(errors.APIStatus); ok {

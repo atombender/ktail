@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -13,9 +14,16 @@ import (
 )
 
 type (
-	ContainerEnterFunc func(pod *v1.Pod, container *v1.Container) bool
-	ContainerExitFunc  func(pod *v1.Pod, container *v1.Container)
-	ContainerErrorFunc func(pod *v1.Pod, container *v1.Container, err error)
+	ContainerEnterFunc func(
+		pod *v1.Pod,
+		container *v1.Container,
+		initialAddPhase bool) bool
+
+	ContainerExitFunc func(pod *v1.Pod,
+		container *v1.Container)
+
+	ContainerErrorFunc func(pod *v1.Pod,
+		container *v1.Container, err error)
 )
 
 type Callbacks struct {
@@ -26,12 +34,12 @@ type Callbacks struct {
 }
 
 type Controller struct {
-	sync.Mutex
 	clientset     *kubernetes.Clientset
 	tailers       map[string]*ContainerTailer
 	namespace     string
 	labelSelector labels.Selector
 	callbacks     Callbacks
+	sync.Mutex
 }
 
 func NewController(
@@ -62,19 +70,24 @@ func (ctl *Controller) Run() {
 		}
 	}
 
-	_, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if pod, ok := obj.(*v1.Pod); ok {
-				ctl.onAdd(pod)
-			}
-		},
-		UpdateFunc: func(old interface{}, new interface{}) {},
-		DeleteFunc: func(obj interface{}) {
-			if pod, ok := obj.(*v1.Pod); ok {
-				ctl.onDelete(pod)
-			}
-		},
-	}, cache.Indexers{})
+	_, informer := cache.NewIndexerInformer(
+		podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if pod, ok := obj.(*v1.Pod); ok {
+					ctl.onAdd(pod)
+				}
+			},
+			UpdateFunc: func(old interface{}, new interface{}) {
+				if pod, ok := new.(*v1.Pod); ok {
+					ctl.onUpdate(pod)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if pod, ok := obj.(*v1.Pod); ok {
+					ctl.onDelete(pod)
+				}
+			},
+		}, cache.Indexers{})
 
 	stopCh := make(chan struct{}, 1)
 	go informer.Run(stopCh)
@@ -82,20 +95,60 @@ func (ctl *Controller) Run() {
 }
 
 func (ctl *Controller) onInitialAdd(pod *v1.Pod) {
-	if !ctl.labelSelector.Matches(labels.Set(pod.Labels)) {
-		return
+	for _, container := range pod.Spec.InitContainers {
+		if ctl.shouldIncludeContainer(pod, &container) {
+			ctl.addContainer(pod, &container, true)
+		}
 	}
 	for _, container := range pod.Spec.Containers {
-		ctl.addContainer(pod, &container, true)
+		if ctl.shouldIncludeContainer(pod, &container) {
+			ctl.addContainer(pod, &container, true)
+		}
 	}
 }
 
 func (ctl *Controller) onAdd(pod *v1.Pod) {
-	if !ctl.labelSelector.Matches(labels.Set(pod.Labels)) {
-		return
+	for _, container := range pod.Spec.InitContainers {
+		if ctl.shouldIncludeContainer(pod, &container) {
+			ctl.addContainer(pod, &container, false)
+		}
 	}
 	for _, container := range pod.Spec.Containers {
-		ctl.addContainer(pod, &container, false)
+		if ctl.shouldIncludeContainer(pod, &container) {
+			ctl.addContainer(pod, &container, false)
+		}
+	}
+}
+
+func (ctl *Controller) onUpdate(pod *v1.Pod) {
+	ctl.onUpdateWithContainers(pod, pod.Spec.Containers,
+		pod.Status.ContainerStatuses)
+	ctl.onUpdateWithContainers(pod, pod.Spec.InitContainers,
+		pod.Status.InitContainerStatuses)
+}
+
+func (ctl *Controller) onUpdateWithContainers(pod *v1.Pod,
+	containers []v1.Container,
+	containerStatuses []v1.ContainerStatus) {
+	for _, containerStatus := range containerStatuses {
+		var container *v1.Container
+		for i, c := range containers {
+			if c.Name == containerStatus.Name {
+				container = &containers[i]
+				break
+			}
+		}
+		if container == nil {
+			// Should be impossible; means there's a status for a container that isn't
+			// part of the spec
+			continue
+		}
+
+		if ctl.shouldIncludeContainer(pod, container) {
+			ctl.addContainer(pod, container, false)
+		} else {
+			ctl.deleteContainer(pod, container)
+		}
 	}
 }
 
@@ -105,7 +158,51 @@ func (ctl *Controller) onDelete(pod *v1.Pod) {
 	}
 }
 
-func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, discoveryPhase bool) {
+func (ctl *Controller) shouldIncludePod(pod *v1.Pod) bool {
+	if !ctl.labelSelector.Matches(labels.Set(pod.Labels)) {
+		return false
+	}
+	if pod.Status.Phase != v1.PodRunning &&
+		pod.Status.Phase != v1.PodPending {
+		return false
+	}
+	return true
+}
+
+func (ctl *Controller) shouldIncludeContainer(
+	pod *v1.Pod, container *v1.Container) bool {
+	if !ctl.shouldIncludePod(pod) {
+		return false
+	}
+	var status *v1.ContainerStatus
+	for _, s := range pod.Status.ContainerStatuses {
+		if s.Name == container.Name {
+			status = &s
+			break
+		}
+	}
+	if status == nil {
+		for _, s := range pod.Status.InitContainerStatuses {
+			if s.Name == container.Name {
+				status = &s
+				break
+			}
+		}
+		if status == nil {
+			return false
+		}
+	}
+	if status.State.Waiting != nil || status.State.Terminated != nil ||
+		status.State.Running == nil {
+		return false
+	}
+	return true
+}
+
+func (ctl *Controller) addContainer(
+	pod *v1.Pod,
+	container *v1.Container,
+	initialAdd bool) {
 	ctl.Lock()
 	defer ctl.Unlock()
 
@@ -114,20 +211,37 @@ func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, discov
 		return
 	}
 
-	if !ctl.callbacks.OnEnter(pod, container) {
+	if !ctl.callbacks.OnEnter(pod, container, initialAdd) {
 		return
 	}
 
 	targetPod, targetContainer := *pod, *container // Copy to avoid mutation
 
-	tailer := NewContainerTailer(ctl.clientset, targetPod, targetContainer, ctl.callbacks.OnEvent,
-		!discoveryPhase)
-	go func() {
-		if err := tailer.Run(); err != nil {
-			ctl.callbacks.OnError(&targetPod, &targetContainer, err)
+	var fromTimestamp *time.Time
+	if initialAdd {
+		// Don't show any history, but add a small amount of buffer to
+		// account for clock skew
+		now := time.Now().Add(time.Second * -5)
+		fromTimestamp = &now
+	} else {
+		for _, status := range pod.Status.ContainerStatuses {
+			if status.Name == container.Name && status.State.Running != nil {
+				startTime := status.State.Running.StartedAt.Time
+				fromTimestamp = &startTime
+				break
+			}
 		}
-	}()
+	}
+
+	tailer := NewContainerTailer(ctl.clientset, targetPod, targetContainer,
+		ctl.callbacks.OnEvent, fromTimestamp)
 	ctl.tailers[key] = tailer
+
+	go func() {
+		tailer.Run(func(err error) {
+			ctl.callbacks.OnError(&targetPod, &targetContainer, err)
+		})
+	}()
 }
 
 func (ctl *Controller) deleteContainer(pod *v1.Pod, container *v1.Container) {
