@@ -1,0 +1,21 @@
+distro: trusty
+language: go
+
+go:
+  - 1.8
+
+script:
+  - curl https://glide.sh/get | sh
+  - go get github.com/mitchellh/gox
+  - glide install --strip-vendor
+  - gox -osarch="darwin/amd64 linux/amd64 linux/arm windows/amd64" -output="bin/ktail-{{.OS}}-{{.Arch}}"
+
+deploy:
+  provider: releases
+  api_key:
+    secure: $ENCRYPTED_GITHUB_TOKEN
+  file_glob: true
+  file: bin/*
+  skip_cleanup: true
+  on:
+    tags: true
