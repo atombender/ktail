@@ -10,3 +10,4 @@ import:
   version: ~1.4.1
 - package: github.com/spf13/pflag
 - package: k8s.io/apimachinery
+- package: github.com/coreos/go-oidc
