@@ -1,11 +1,25 @@
-hash: 9afa3bf3d61dc05d612bd2d692babdf3dbd001091bb25884742eb4e05e6be2bd
-updated: 2017-05-16T16:02:34.029209983-04:00
+hash: 6d12be0b4de0a6410216ba64d3bb2b8b2079530e296d4c5c581c7c2ae1b7c0a8
+updated: 2017-12-12T19:16:32.552026Z
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
   subpackages:
   - compute/metadata
   - internal
+- name: github.com/coreos/go-oidc
+  version: be73733bb8cc830d0205609b95d125215f8e9c70
+  subpackages:
+  - http
+  - jose
+  - key
+  - oauth2
+  - oidc
+- name: github.com/coreos/pkg
+  version: fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
+  subpackages:
+  - health
+  - httputil
+  - timeutil
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
@@ -49,6 +63,8 @@ imports:
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
+- name: github.com/jonboulle/clockwork
+  version: 72f9bd7c4e0c2a40055ab3d0f09654f730cce982
 - name: github.com/jpillora/backoff
   version: 06c7a16c845dc8e0bf575fafeeca0f5462f5eb4d
 - name: github.com/juju/ratelimit
@@ -70,7 +86,7 @@ imports:
 - name: github.com/PuerkitoBio/urlesc
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/spf13/pflag
-  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
+  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 - name: github.com/ugorji/go
   version: ded73eae5db7e7a0ef6f55aace87a2873c5d2b74
   subpackages:
@@ -241,6 +257,7 @@ imports:
   - pkg/util/parsers
   - pkg/version
   - plugin/pkg/client/auth/gcp
+  - plugin/pkg/client/auth/oidc
   - rest
   - rest/watch
   - third_party/forked/golang/template
