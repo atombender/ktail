@@ -1,3 +1,10 @@
+# [v0.6.0](https://github.com/atombender/ktail/releases/tag/v0.6.0) (2017-12-14)
+
+## Fixes
+
+* Fix race conditions causing some log entries to be dropped on startup, as well as if a container is flapping.
+* More fine-grained container status (e.g. a crashed container will not be tracked until it starts again).
+
 # [v0.5.0](https://github.com/atombender/ktail/releases/tag/v0.5.0) (2017-06-01)
 
 ## Fixes
