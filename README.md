@@ -22,14 +22,15 @@ $ brew install atombender/ktail/ktail
 
 ## From source
 
-This requires [Glide](https://glide.sh/) and Go >= 1.7.
+This requires [Dep](https://github.com/golang/dep) and Go >= 1.7.
 
 ```shell
 $ mkdir -p $GOPATH/src/github.com/atombender
 $ cd $GOPATH/src/github.com/atombender
 $ git clone https://github.com/atombender/ktail
 $ cd ktail
-$ glide install --strip-vendor
+$ dep ensure -vendor-only
+$ make
 ```
 
 # Usage

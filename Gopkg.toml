@@ -1,0 +1,20 @@
+[[constraint]]
+  name = "github.com/fatih/color"
+  version = "~1.4.1"
+
+[[constraint]]
+  name = "github.com/jpillora/backoff"
+
+[[constraint]]
+  name = "github.com/spf13/pflag"
+
+[[constraint]]
+  name = "k8s.io/apimachinery"
+
+[[constraint]]
+  name = "k8s.io/client-go"
+  version = "3.0.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/coreos/go-oidc"
