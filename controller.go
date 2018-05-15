@@ -7,11 +7,15 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 )
+
+type ControllerOptions struct {
+	Namespace string
+	Matcher   Matcher
+}
 
 type (
 	ContainerEnterFunc func(
@@ -34,31 +38,28 @@ type Callbacks struct {
 }
 
 type Controller struct {
-	clientset     *kubernetes.Clientset
-	tailers       map[string]*ContainerTailer
-	namespace     string
-	labelSelector labels.Selector
-	callbacks     Callbacks
+	ControllerOptions
+	clientset *kubernetes.Clientset
+	tailers   map[string]*ContainerTailer
+	callbacks Callbacks
 	sync.Mutex
 }
 
 func NewController(
 	clientset *kubernetes.Clientset,
-	namespace string,
-	labelSelector labels.Selector,
+	options ControllerOptions,
 	callbacks Callbacks) *Controller {
 	return &Controller{
-		clientset:     clientset,
-		tailers:       map[string]*ContainerTailer{},
-		namespace:     namespace,
-		labelSelector: labelSelector,
-		callbacks:     callbacks,
+		ControllerOptions: options,
+		clientset:         clientset,
+		tailers:           map[string]*ContainerTailer{},
+		callbacks:         callbacks,
 	}
 }
 
 func (ctl *Controller) Run() {
 	podListWatcher := cache.NewListWatchFromClient(
-		ctl.clientset.CoreV1Client.RESTClient(), "pods", ctl.namespace, fields.Everything())
+		ctl.clientset.CoreV1Client.RESTClient(), "pods", ctl.Namespace, fields.Everything())
 
 	obj, err := podListWatcher.List(metav1.ListOptions{})
 	if err != nil {
@@ -159,7 +160,7 @@ func (ctl *Controller) onDelete(pod *v1.Pod) {
 }
 
 func (ctl *Controller) shouldIncludePod(pod *v1.Pod) bool {
-	if !ctl.labelSelector.Matches(labels.Set(pod.Labels)) {
+	if !ctl.Matcher.Match(pod) {
 		return false
 	}
 	if pod.Status.Phase != v1.PodRunning &&
@@ -169,8 +170,7 @@ func (ctl *Controller) shouldIncludePod(pod *v1.Pod) bool {
 	return true
 }
 
-func (ctl *Controller) shouldIncludeContainer(
-	pod *v1.Pod, container *v1.Container) bool {
+func (ctl *Controller) shouldIncludeContainer(pod *v1.Pod, container *v1.Container) bool {
 	if !ctl.shouldIncludePod(pod) {
 		return false
 	}

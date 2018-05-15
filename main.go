@@ -13,50 +13,64 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-    _ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 func main() {
 	var (
-		contextName       string
-		kubeconfigPath    string
-		labelSelectorExpr string
-		namespace         string
-		allNamespaces     bool
-		quiet             bool
-		timestamps        bool
-		tmplString        string
-		containerPatterns []*regexp.Regexp
+		contextName           string
+		kubeconfigPath        string
+		labelSelectorExpr     string
+		namespace             string
+		allNamespaces         bool
+		quiet                 bool
+		timestamps            bool
+		tmplString            string
+		includePatterns       []*regexp.Regexp
+		excludePatternStrings []string
 	)
 
 	flags := pflag.NewFlagSet("ktail", pflag.ExitOnError)
 	flags.Usage = func() {
 		flags.PrintDefaults()
 	}
-
 	flags.StringVar(&contextName, "context", "", "Kubernetes context name")
-	flags.StringVar(&kubeconfigPath, "kubeconfig", "", "Path to kubeconfig (only required out-of-cluster)")
+	flags.StringVar(&kubeconfigPath, "kubeconfig", "",
+		"Path to kubeconfig (only required out-of-cluster)")
 	flags.StringVarP(&namespace, "namespace", "n", "", "Kubernetes namespace")
-	flags.StringVarP(&labelSelectorExpr, "selector", "l", "", "Match pods by label (see 'kubectl get -h' for syntax)")
-	flags.StringVarP(&tmplString, "template", "t", "", "Template to format each line. For example, for"+
-		" just the message, use --template '{{ .Message }}'.")
+	flags.StringArrayVarP(&excludePatternStrings, "exclude", "x", []string{},
+		"Exclude using a regular expression. Pattern can be repeated. Takes priority over"+
+			" include patterns and labels.")
+	flags.StringVarP(&labelSelectorExpr, "selector", "l", "",
+		"Match pods by label (see 'kubectl get -h' for syntax).")
+	flags.StringVarP(&tmplString, "template", "t", "",
+		"Template to format each line. For example, for"+
+			" just the message, use --template '{{ .Message }}'.")
 	flags.BoolVar(&allNamespaces, "all-namespaces", false, "Apply to all Kubernetes namespaces")
 	flags.BoolVar(&timestamps, "timestamps", false, "Include timestamps on each line")
 	flags.BoolVarP(&quiet, "quiet", "q", false, "Don't print events about new/deleted pods")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fail(err.Error())
 		os.Exit(1)
+	}
+
+	var excludePatterns []*regexp.Regexp
+	for _, p := range excludePatternStrings {
+		r, err := regexp.Compile(p)
+		if err != nil {
+			fail("Invalid regexp: %q: %s\n", p, err)
+		}
+		excludePatterns = append(excludePatterns, r)
 	}
 
 	for _, arg := range flags.Args() {
 		r, err := regexp.Compile(arg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid regexp: %q: %s\n", arg, err)
-			os.Exit(1)
+			fail("Invalid regexp: %q: %s\n", arg, err)
 		}
-		containerPatterns = append(containerPatterns, r)
+		includePatterns = append(includePatterns, r)
 	}
 
 	if tmplString == "" {
@@ -81,17 +95,16 @@ func main() {
 	labelSelector := labels.Everything()
 	if labelSelectorExpr != "" {
 		if sel, err := labels.Parse(labelSelectorExpr); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			fail(err.Error())
 		} else {
 			labelSelector = sel
 		}
 	}
+	matcher := buildMatcher(includePatterns, excludePatterns, labelSelector)
 
 	tmpl, err := template.New("line").Parse(tmplString)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, fmt.Sprintf("Invalid template: %s", err))
-		os.Exit(1)
+		fail("Invalid template: %s", err)
 	}
 
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -104,20 +117,17 @@ func main() {
 
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fail(err.Error())
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fail(err.Error())
 	}
 
 	rawConfig, err := clientConfig.RawConfig()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fail(err.Error())
 	}
 
 	if allNamespaces {
@@ -145,7 +155,10 @@ func main() {
 	}
 
 	var stdoutMutex sync.Mutex
-	controller := NewController(clientset, namespace, labelSelector,
+	controller := NewController(clientset, ControllerOptions{
+		Namespace: namespace,
+		Matcher:   matcher,
+	},
 		Callbacks{
 			OnEvent: func(event LogEvent) {
 				stdoutMutex.Lock()
@@ -156,18 +169,6 @@ func main() {
 				pod *v1.Pod,
 				container *v1.Container,
 				initialAddPhase bool) bool {
-				if len(containerPatterns) > 0 {
-					match := false
-					for _, r := range containerPatterns {
-						if r.MatchString(pod.Name) || r.MatchString(container.Name) {
-							match = true
-							break
-						}
-					}
-					if !match {
-						return false
-					}
-				}
 				if !quiet {
 					if initialAddPhase {
 						_, _ = yellow.Fprintf(os.Stderr,
@@ -206,4 +207,9 @@ func main() {
 			},
 		})
 	controller.Run()
+}
+
+func fail(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, args...)
+	os.Exit(1)
 }
