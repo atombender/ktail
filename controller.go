@@ -227,8 +227,9 @@ func (ctl *Controller) addContainer(
 		for _, status := range pod.Status.ContainerStatuses {
 			if status.Name == container.Name && status.State.Running != nil {
 				startTime := status.State.Running.StartedAt.Time
-				fromTimestamp = &startTime
-				break
+				if fromTimestamp == nil || startTime.Before(*fromTimestamp) {
+					fromTimestamp = &startTime
+				}
 			}
 		}
 	}
