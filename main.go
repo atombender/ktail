@@ -27,6 +27,7 @@ func main() {
 		quiet                 bool
 		timestamps            bool
 		tmplString            string
+		sinceStart            bool
 		includePatterns       []*regexp.Regexp
 		excludePatternStrings []string
 	)
@@ -50,6 +51,8 @@ func main() {
 	flags.BoolVar(&allNamespaces, "all-namespaces", false, "Apply to all Kubernetes namespaces")
 	flags.BoolVar(&timestamps, "timestamps", false, "Include timestamps on each line")
 	flags.BoolVarP(&quiet, "quiet", "q", false, "Don't print events about new/deleted pods")
+	flags.BoolVarP(&sinceStart, "since-start", "", false,
+		"Start reading log from the beginning of the container's lifetime.")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		fail(err.Error())
@@ -156,8 +159,9 @@ func main() {
 
 	var stdoutMutex sync.Mutex
 	controller := NewController(clientset, ControllerOptions{
-		Namespace: namespace,
-		Matcher:   matcher,
+		Namespace:  namespace,
+		Matcher:    matcher,
+		SinceStart: sinceStart,
 	},
 		Callbacks{
 			OnEvent: func(event LogEvent) {

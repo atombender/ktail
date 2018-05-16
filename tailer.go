@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/sha256"
 	"io"
 	"net/http"
 	"strings"
@@ -40,13 +42,15 @@ func NewContainerTailer(
 }
 
 type ContainerTailer struct {
-	clientset     *kubernetes.Clientset
-	pod           v1.Pod
-	container     v1.Container
-	stop          bool
-	eventFunc     LogEventFunc
-	fromTimestamp *time.Time
-	errorBackoff  *backoff.Backoff
+	clientset        *kubernetes.Clientset
+	pod              v1.Pod
+	container        v1.Container
+	stop             bool
+	eventFunc        LogEventFunc
+	fromTimestamp    *time.Time
+	errorBackoff     *backoff.Backoff
+	lastLineChecksum []byte
+	restarted        bool
 }
 
 func (ct *ContainerTailer) Stop() {
@@ -69,6 +73,7 @@ func (ct *ContainerTailer) Run(onError func(err error)) {
 			onError(err)
 			time.Sleep(ct.errorBackoff.Duration())
 		}
+		ct.restarted = true
 	}
 }
 
@@ -80,13 +85,24 @@ func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
 	r := bufio.NewReader(stream)
 	for {
 		line, err := r.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			return err
 		}
 		ct.errorBackoff.Reset()
+
+		if ct.restarted {
+			// If just restarted, we might be continuing off a timestamp that results in dupes,
+			// so discard the dupes.
+			ct.restarted = false
+			checksum := checksumLine(line)
+			if bytes.Equal(ct.lastLineChecksum, checksum) {
+				continue
+			}
+			ct.lastLineChecksum = checksum
+		}
 		ct.receiveLine(line)
 	}
 	return nil
@@ -109,6 +125,10 @@ func (ct *ContainerTailer) receiveLine(s string) {
 	var timestamp *time.Time
 	if t, err := time.Parse(time.RFC3339Nano, parts[0]); err == nil {
 		timestamp = &t
+		if ct.fromTimestamp != nil && timestamp.Before(*ct.fromTimestamp) {
+			// We are receiving an old line, skip it
+			return
+		}
 
 		// On restart, start from this timestamp. This isn't exact, however.
 		nextTimestamp := t.Add(time.Millisecond * 1)
@@ -127,7 +147,7 @@ func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
 	var sinceTime *metav1.Time
 	if ct.fromTimestamp != nil {
 		sinceTime = &metav1.Time{
-			Time: *ct.fromTimestamp,
+			Time: ct.fromTimestamp.UTC(),
 		}
 	}
 
@@ -154,4 +174,10 @@ func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
 		}
 		return nil, err
 	}
+}
+
+func checksumLine(s string) []byte {
+	digest := sha256.New()
+	digest.Write([]byte(s))
+	return digest.Sum(nil)
 }
