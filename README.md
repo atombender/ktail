@@ -24,17 +24,17 @@ Precompiled binaries for Windows, macOS, Linux (x64 and ARM) are available on th
 ### Linux
 
 ```shell
-curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-linux-amd64 -o ktail
-chmod +x ktail
-sudo mv ./ktail /usr/local/bin/ktail
+$ curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-linux-amd64 -o ktail
+$ chmod +x ktail
+$ sudo mv ./ktail /usr/local/bin/ktail
 ```
 
 ### macOS
 
 ```shell
-curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-darwin-amd64 -o ktail
-chmod +x ktail
-sudo mv ./ktail /usr/local/bin/ktail
+$ curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-darwin-amd64 -o ktail
+$ chmod +x ktail
+$ sudo mv ./ktail /usr/local/bin/ktail
 ```
 
 ### Windows
@@ -59,7 +59,7 @@ $ make
 Tailing based on label:
 
 ```shell
-ktail -l app=myapp
+$ ktail -l app=myapp
 ```
 
 This will tail all containers in all pods matching the label `app=myapp`. As new pods are created, it will also automatically tail those, too.
@@ -67,18 +67,18 @@ This will tail all containers in all pods matching the label `app=myapp`. As new
 It's also possible to filter on pod/container name. The following will match all containers whose pod name or container name contains the substring `foo`:
 
 ```shell
-ktail foo
+$ ktail foo
 ```
 
 The arguments are regular expressions, so this is possible:
 
 ```shell
-ktail '^foo'
+$ ktail '^foo'
 ```
 
 If no filters are specified, _all_ pods in the current namespace are tailed.
 
-To abort tailing, hit Ctrl-C.
+To abort tailing, hit `Ctrl+C`.
 
 ## Options
 
@@ -89,7 +89,7 @@ Run `ktail -h` for usage.
 ktail has a basic output format. To override, you can use a simple Go template. For example:
 
 ```shell
-ktail -t "{{.Container.Name}} {{.Message}}"
+$ ktail -t "{{.Container.Name}} {{.Message}}"
 ```
 
 The following variables are available:
