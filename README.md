@@ -1,12 +1,12 @@
 ***ktail is a tool to tail Kubernetes logs. It's like `kubectl logs`, but with a bunch of features to make it more convenient.***
 
-ktail will **detect pods and containers as they come and go**. If you run `ktail foo` and later start a pod or container named `foo`, then it will be picked up automatically. `kubectl` only works on a running pod/container.
+:white_check_mark: **Detects pods and containers as they come and go**. If you run `ktail foo` and later start a pod or container named `foo`, then it will be picked up automatically. `kubectl` only works on a running pod/container.
 
-ktail **tails multiple pods and containers** at the same time, based on names and labels. `kubectl` can only tail a single pod and container. ktail will match the pattern or patterns you specify against both the pod name and the container name.
+:white_check_mark: **Tails multiple pods and containers** at the same time, based on names and labels. `kubectl` can only tail a single pod and container. ktail will match the pattern or patterns you specify against both the pod name and the container name.
 
-**All containers are tailed by default**, not just a specific one. With `kubectl`, you have to use `-c`. With ktail, just do `ktail foo` and all its containers are automatically tailed.
+:white_check_mark: **All containers are tailed by default**, not just a specific one. With `kubectl`, you have to use `-c`. With ktail, just do `ktail foo` and all its containers are automatically tailed.
 
-ktail will try hard to **keep running in the presence of failures**, and it will keep retrying until a container's logs are available.
+:white_check_mark: **Keeps running in the presence of failures**. ktail will keep retrying until a container's logs are available.
 
 # Installation
 
