@@ -21,22 +21,28 @@ $ brew install atombender/ktail/ktail
 ```
 
 ## Binary installation
-Precompiled binaries for Windows, OS X, Linux are available on the [GitHub release page](https://github.com/atombender/ktail/releases).
 
-### Linux and macOS:
+Precompiled binaries for Windows, macOS, Linux (x64 and ARM) are available on the [GitHub release page](https://github.com/atombender/ktail/releases).
+
+### Linux
+
 ```shell
-# Linux
-curl -L https://github.com/atombender/ktail/releases/download/v0.5.1/ktail-linux-amd64 -o ktail
-
-# macOS
-curl -L https://github.com/atombender/ktail/releases/download/v0.5.1/ktail-darwin-amd64 -o ktail
-
+curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-linux-amd64 -o ktail
 chmod +x ktail
 sudo mv ./ktail /usr/local/bin/ktail
 ```
 
-### Windows:
-Download from [GitHub](https://github.com/atombender/ktail/releases/download/v0.5.1/ktail-windows-amd64.exe) and add the binary to your `PATH`.
+### macOS
+
+```shell
+curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-darwin-amd64 -o ktail
+chmod +x ktail
+sudo mv ./ktail /usr/local/bin/ktail
+```
+
+### Windows
+
+Download from [GitHub](https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-windows-amd64.exe) and add the binary to your `PATH`.
 
 ## From source
 
