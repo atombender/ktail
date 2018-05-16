@@ -123,15 +123,8 @@ func (ctl *Controller) onAdd(pod *v1.Pod) {
 }
 
 func (ctl *Controller) onUpdate(pod *v1.Pod) {
-	ctl.onUpdateWithContainers(pod, pod.Spec.Containers,
-		pod.Status.ContainerStatuses)
-	ctl.onUpdateWithContainers(pod, pod.Spec.InitContainers,
-		pod.Status.InitContainerStatuses)
-}
-
-func (ctl *Controller) onUpdateWithContainers(pod *v1.Pod,
-	containers []v1.Container,
-	containerStatuses []v1.ContainerStatus) {
+	containers := pod.Spec.Containers
+	containerStatuses := allContainerStatusesForPod(pod)
 	for _, containerStatus := range containerStatuses {
 		var container *v1.Container
 		for i, c := range containers {
@@ -176,34 +169,20 @@ func (ctl *Controller) shouldIncludeContainer(pod *v1.Pod, container *v1.Contain
 		return false
 	}
 	var status *v1.ContainerStatus
-	for _, s := range pod.Status.ContainerStatuses {
+	for _, s := range allContainerStatusesForPod(pod) {
 		if s.Name == container.Name {
 			status = &s
 			break
 		}
 	}
-	if status == nil {
-		for _, s := range pod.Status.InitContainerStatuses {
-			if s.Name == container.Name {
-				status = &s
-				break
-			}
-		}
-		if status == nil {
-			return false
-		}
-	}
-	if status.State.Waiting != nil || status.State.Terminated != nil ||
+	if status == nil || status.State.Waiting != nil || status.State.Terminated != nil ||
 		status.State.Running == nil {
 		return false
 	}
 	return true
 }
 
-func (ctl *Controller) addContainer(
-	pod *v1.Pod,
-	container *v1.Container,
-	initialAdd bool) {
+func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, initialAdd bool) {
 	ctl.Lock()
 	defer ctl.Unlock()
 
@@ -262,7 +241,7 @@ func (ctl *Controller) getStartTimestamp(
 	}
 
 	var t *time.Time
-	for _, status := range pod.Status.ContainerStatuses {
+	for _, status := range allContainerStatusesForPod(pod) {
 		if status.Name == container.Name && status.State.Running != nil {
 			startTime := status.State.Running.StartedAt.Time
 			if t == nil || startTime.Before(*t) {
@@ -281,15 +260,17 @@ func buildKey(pod *v1.Pod, container *v1.Container) string {
 }
 
 func findContainerID(pod *v1.Pod, container *v1.Container) string {
-	for _, c := range pod.Status.ContainerStatuses {
-		if c.Name == container.Name {
-			return c.ContainerID
-		}
-	}
-	for _, c := range pod.Status.InitContainerStatuses {
+	for _, c := range allContainerStatusesForPod(pod) {
 		if c.Name == container.Name {
 			return c.ContainerID
 		}
 	}
 	return container.Name // Fallback, should never happen
+}
+
+func allContainerStatusesForPod(pod *v1.Pod) []v1.ContainerStatus {
+	statuses := make([]v1.ContainerStatus, len(pod.Status.ContainerStatuses)+len(pod.Status.InitContainerStatuses))
+	return append(
+		append(statuses, pod.Status.InitContainerStatuses...),
+		pod.Status.ContainerStatuses...)
 }
