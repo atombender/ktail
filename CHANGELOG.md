@@ -1,3 +1,15 @@
+# [v0.7.0](https://github.com/atombender/ktail/releases/tag/v0.7.0) (2018-05-15)
+
+## Features
+
+* Add `--exclude`, `-x` flag to exclude pods and containers.
+* Add `--since-start` to get logs since container start.
+
+## Fixes
+
+* Fix rare edge case where we might use the wrong timestamp if a newly discovered pod has multiple containers that started at different times.
+* Fix rare edge case where a new container would not be detected because it has the exact same name as a previous instance.
+
 # [v0.6.0](https://github.com/atombender/ktail/releases/tag/v0.6.0) (2017-12-14)
 
 ## Fixes
