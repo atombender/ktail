@@ -277,5 +277,19 @@ func (ctl *Controller) getStartTimestamp(
 }
 
 func buildKey(pod *v1.Pod, container *v1.Container) string {
-	return fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, container.Name)
+	return fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, findContainerID(pod, container))
+}
+
+func findContainerID(pod *v1.Pod, container *v1.Container) string {
+	for _, c := range pod.Status.ContainerStatuses {
+		if c.Name == container.Name {
+			return c.ContainerID
+		}
+	}
+	for _, c := range pod.Status.InitContainerStatuses {
+		if c.Name == container.Name {
+			return c.ContainerID
+		}
+	}
+	return container.Name // Fallback, should never happen
 }
