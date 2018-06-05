@@ -1,3 +1,9 @@
+# [v0.8.0](https://github.com/atombender/ktail/releases/tag/v0.8.0) (2018-06-05)
+
+## Fixes
+
+* Fix surprisingly broken exclusion matching.
+
 # [v0.7.0](https://github.com/atombender/ktail/releases/tag/v0.7.0) (2018-05-15)
 
 ## Features
