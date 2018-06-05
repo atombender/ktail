@@ -103,7 +103,9 @@ func main() {
 			labelSelector = sel
 		}
 	}
-	matcher := buildMatcher(includePatterns, excludePatterns, labelSelector)
+
+	inclusionMatcher := buildMatcher(includePatterns, labelSelector, true)
+	exclusionMatcher := buildMatcher(excludePatterns, nil, false)
 
 	tmpl, err := template.New("line").Parse(tmplString)
 	if err != nil {
@@ -159,9 +161,10 @@ func main() {
 
 	var stdoutMutex sync.Mutex
 	controller := NewController(clientset, ControllerOptions{
-		Namespace:  namespace,
-		Matcher:    matcher,
-		SinceStart: sinceStart,
+		Namespace:        namespace,
+		InclusionMatcher: inclusionMatcher,
+		ExclusionMatcher: exclusionMatcher,
+		SinceStart:       sinceStart,
 	},
 		Callbacks{
 			OnEvent: func(event LogEvent) {

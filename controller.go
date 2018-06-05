@@ -13,9 +13,10 @@ import (
 )
 
 type ControllerOptions struct {
-	Namespace  string
-	Matcher    Matcher
-	SinceStart bool
+	Namespace        string
+	InclusionMatcher Matcher
+	ExclusionMatcher Matcher
+	SinceStart       bool
 }
 
 type (
@@ -153,33 +154,30 @@ func (ctl *Controller) onDelete(pod *v1.Pod) {
 	}
 }
 
-func (ctl *Controller) shouldIncludePod(pod *v1.Pod) bool {
-	if !ctl.Matcher.Match(pod) {
-		return false
-	}
-	if pod.Status.Phase != v1.PodRunning &&
-		pod.Status.Phase != v1.PodPending {
-		return false
-	}
-	return true
-}
-
 func (ctl *Controller) shouldIncludeContainer(pod *v1.Pod, container *v1.Container) bool {
-	if !ctl.shouldIncludePod(pod) {
+	if !(pod.Status.Phase == v1.PodRunning || pod.Status.Phase == v1.PodPending) {
 		return false
 	}
-	var status *v1.ContainerStatus
+
+	running := false
 	for _, s := range allContainerStatusesForPod(pod) {
-		if s.Name == container.Name {
-			status = &s
+		if s.Name == container.Name && (s.State.Waiting != nil || s.State.Terminated != nil ||
+			s.State.Running != nil) {
+			running = true
 			break
 		}
 	}
-	if status == nil || status.State.Waiting != nil || status.State.Terminated != nil ||
-		status.State.Running == nil {
+	if !running {
 		return false
 	}
-	return true
+
+	if ctl.ExclusionMatcher.Match(pod) {
+		return false
+	}
+	if !(ctl.InclusionMatcher.Match(pod) || ctl.InclusionMatcher.Match(container)) {
+		return false
+	}
+	return !ctl.ExclusionMatcher.Match(container)
 }
 
 func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, initialAdd bool) {

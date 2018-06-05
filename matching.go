@@ -16,7 +16,7 @@ type and []Matcher
 
 func (m and) Match(value interface{}) bool {
 	if len(m) == 0 {
-		return true
+		return false
 	}
 	for _, sm := range m {
 		if !sm.Match(value) {
@@ -30,7 +30,7 @@ type or []Matcher
 
 func (m or) Match(value interface{}) bool {
 	if len(m) == 0 {
-		return true
+		return false
 	}
 	for _, sm := range m {
 		if sm.Match(value) {
@@ -46,7 +46,7 @@ type not struct {
 
 func (m not) Match(value interface{}) bool {
 	if m.matcher == nil {
-		return true
+		return false
 	}
 	v := !m.matcher.Match(value)
 	return v
@@ -57,31 +57,12 @@ type regexMatcher struct {
 }
 
 func (m regexMatcher) Match(value interface{}) bool {
-	var s string
 	switch t := value.(type) {
 	case *v1.Pod:
-		return m.matchPod(t)
+		return m.regexp.MatchString(t.Name)
 	case *v1.Container:
-		s = t.Name
+		return m.regexp.MatchString(t.Name)
 	default:
-		return false
-	}
-	return m.regexp.MatchString(s)
-}
-
-func (m regexMatcher) matchPod(pod *v1.Pod) bool {
-	if m.regexp.MatchString(pod.Name) {
-		return true
-	}
-	for _, c := range pod.Spec.Containers {
-		if m.Match(&c) {
-			return true
-		}
-	}
-	for _, c := range pod.Spec.InitContainers {
-		if m.Match(&c) {
-			return true
-		}
 	}
 	return false
 }
@@ -95,25 +76,49 @@ func (m labelSelectorMatcher) Match(value interface{}) bool {
 	case *v1.Pod:
 		return m.selector.Matches(labels.Set(t.Labels))
 	}
+	return false
+}
+
+type trueMatcher struct{}
+
+func (trueMatcher) Match(value interface{}) bool {
 	return true
 }
 
+type falseMatcher struct{}
+
+func (falseMatcher) Match(value interface{}) bool {
+	return false
+}
+
+func buildAnd(a, b Matcher) Matcher {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	return and{a, b}
+}
+
 func buildMatcher(
-	includeRegexps, excludeRegexps []*regexp.Regexp,
-	labelSelector labels.Selector) Matcher {
-	includes := make(or, len(includeRegexps))
-	for i, r := range includeRegexps {
-		includes[i] = regexMatcher{regexp: r}
-	}
-
-	var matcher Matcher = includes
-	if len(excludeRegexps) > 0 {
-		excludes := make(or, len(excludeRegexps))
-		for i, r := range excludeRegexps {
-			excludes[i] = regexMatcher{regexp: r}
+	patterns []*regexp.Regexp,
+	labelSelector labels.Selector,
+	defaultMatch bool) Matcher {
+	var matcher Matcher
+	if len(patterns) > 0 {
+		ors := make(or, len(patterns))
+		for i, r := range patterns {
+			ors[i] = regexMatcher{regexp: r}
 		}
-		matcher = and{matcher, not{matcher: excludes}}
+		matcher = ors
+	} else if defaultMatch {
+		matcher = trueMatcher{}
+	} else {
+		matcher = falseMatcher{}
 	}
-
-	return and{labelSelectorMatcher{labelSelector}, matcher}
+	if labelSelector != nil && !labelSelector.Empty() {
+		matcher = and{labelSelectorMatcher{labelSelector}, matcher}
+	}
+	return matcher
 }
