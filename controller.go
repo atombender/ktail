@@ -5,10 +5,11 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/client-go/kubernetes"
+
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -41,19 +42,19 @@ type Callbacks struct {
 
 type Controller struct {
 	ControllerOptions
-	clientset *kubernetes.Clientset
+	client    kubernetes.Interface
 	tailers   map[string]*ContainerTailer
 	callbacks Callbacks
 	sync.Mutex
 }
 
 func NewController(
-	clientset *kubernetes.Clientset,
+	client kubernetes.Interface,
 	options ControllerOptions,
 	callbacks Callbacks) *Controller {
 	return &Controller{
 		ControllerOptions: options,
-		clientset:         clientset,
+		client:            client,
 		tailers:           map[string]*ContainerTailer{},
 		callbacks:         callbacks,
 	}
@@ -61,7 +62,7 @@ func NewController(
 
 func (ctl *Controller) Run() {
 	podListWatcher := cache.NewListWatchFromClient(
-		ctl.clientset.CoreV1Client.RESTClient(), "pods", ctl.Namespace, fields.Everything())
+		ctl.client.CoreV1().RESTClient(), "pods", ctl.Namespace, fields.Everything())
 
 	obj, err := podListWatcher.List(metav1.ListOptions{})
 	if err != nil {
@@ -200,7 +201,7 @@ func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, initia
 
 	targetPod, targetContainer := *pod, *container // Copy to avoid mutation
 
-	tailer := NewContainerTailer(ctl.clientset, targetPod, targetContainer,
+	tailer := NewContainerTailer(ctl.client, targetPod, targetContainer,
 		ctl.callbacks.OnEvent, timestamp)
 	ctl.tailers[key] = tailer
 

@@ -3,9 +3,8 @@ package main
 import (
 	"regexp"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 type Matcher interface {

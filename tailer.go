@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/jpillora/backoff"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 type LogEvent struct {
@@ -26,13 +26,13 @@ type LogEvent struct {
 type LogEventFunc func(LogEvent)
 
 func NewContainerTailer(
-	clientset *kubernetes.Clientset,
+	client kubernetes.Interface,
 	pod v1.Pod,
 	container v1.Container,
 	eventFunc LogEventFunc,
 	fromTimestamp *time.Time) *ContainerTailer {
 	return &ContainerTailer{
-		clientset:     clientset,
+		client:        client,
 		pod:           pod,
 		container:     container,
 		eventFunc:     eventFunc,
@@ -42,7 +42,7 @@ func NewContainerTailer(
 }
 
 type ContainerTailer struct {
-	clientset        *kubernetes.Clientset
+	client           kubernetes.Interface
 	pod              v1.Pod
 	container        v1.Container
 	stop             bool
@@ -153,7 +153,7 @@ func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
 
 	boff := &backoff.Backoff{}
 	for {
-		stream, err := ct.clientset.Core().Pods(ct.pod.Namespace).GetLogs(ct.pod.Name, &v1.PodLogOptions{
+		stream, err := ct.client.CoreV1().Pods(ct.pod.Namespace).GetLogs(ct.pod.Name, &v1.PodLogOptions{
 			Container:  ct.container.Name,
 			Follow:     true,
 			Timestamps: true,

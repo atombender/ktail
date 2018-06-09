@@ -43,15 +43,14 @@ Download from [GitHub](https://github.com/atombender/ktail/releases/download/v0.
 
 ## From source
 
-This requires [Dep](https://github.com/golang/dep) and Go >= 1.7.
+This requires [Glide](https://glide.sh/) and Go >= 1.7.
 
 ```shell
 $ mkdir -p $GOPATH/src/github.com/atombender
 $ cd $GOPATH/src/github.com/atombender
 $ git clone https://github.com/atombender/ktail
 $ cd ktail
-$ dep ensure -vendor-only
-$ make
+$ glide install --strip-vendor
 ```
 
 # Usage

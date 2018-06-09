@@ -5,9 +5,9 @@ go:
 - 1.8
 
 script:
-- curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+- curl https://glide.sh/get | sh
 - go get github.com/mitchellh/gox
-- dep ensure -vendor-only
+- glide install --strip-vendor
 - gox -osarch="darwin/amd64 linux/amd64 linux/arm windows/amd64" -output="bin/ktail-{{.OS}}-{{.Arch}}"
 
 deploy:
