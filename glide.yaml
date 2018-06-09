@@ -4,7 +4,9 @@ import:
   version: v7.0.0
 - package: github.com/jpillora/backoff
 - package: github.com/fatih/color
-  version: ~1.4.1
+  version: ~1.7.0
 - package: github.com/spf13/pflag
 - package: k8s.io/apimachinery
 - package: github.com/coreos/go-oidc
+- package: golang.org/x/sys/windows
+  version: 07c182904dbd53199946ba614a412c61d3c548f5
