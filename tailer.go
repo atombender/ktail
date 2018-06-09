@@ -16,6 +16,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+type tailState int
+
+const (
+	tailStateNormal tailState = iota
+	tailStateRecover
+)
+
 type LogEvent struct {
 	Pod       *v1.Pod
 	Container *v1.Container
@@ -38,6 +45,7 @@ func NewContainerTailer(
 		eventFunc:     eventFunc,
 		fromTimestamp: fromTimestamp,
 		errorBackoff:  &backoff.Backoff{},
+		state:         tailStateNormal,
 	}
 }
 
@@ -50,7 +58,7 @@ type ContainerTailer struct {
 	fromTimestamp    *time.Time
 	errorBackoff     *backoff.Backoff
 	lastLineChecksum []byte
-	restarted        bool
+	state            tailState
 }
 
 func (ct *ContainerTailer) Stop() {
@@ -73,7 +81,7 @@ func (ct *ContainerTailer) Run(onError func(err error)) {
 			onError(err)
 			time.Sleep(ct.errorBackoff.Duration())
 		}
-		ct.restarted = true
+		ct.state = tailStateRecover
 	}
 }
 
@@ -82,28 +90,14 @@ func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
 		_ = stream.Close()
 	}()
 
-	r := bufio.NewReader(stream)
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
-		}
+	scanner := bufio.NewScanner(stream)
+	for scanner.Scan() {
+		line := scanner.Text()
 		ct.errorBackoff.Reset()
-
-		if ct.restarted {
-			// If just restarted, we might be continuing off a timestamp that results in dupes,
-			// so discard the dupes.
-			ct.restarted = false
-			checksum := checksumLine(line)
-			if bytes.Equal(ct.lastLineChecksum, checksum) {
-				continue
-			}
-			ct.lastLineChecksum = checksum
-		}
 		ct.receiveLine(line)
+	}
+	if err := scanner.Err(); err != nil && err != io.EOF {
+		return err
 	}
 	return nil
 }
@@ -118,27 +112,45 @@ func (ct *ContainerTailer) receiveLine(s string) {
 
 	parts := strings.SplitN(s, " ", 2)
 	if len(parts) < 2 {
-		// TODO: Warn?
+		// TODO: Warn
 		return
 	}
 
-	var timestamp *time.Time
-	if t, err := time.Parse(time.RFC3339Nano, parts[0]); err == nil {
-		timestamp = &t
+	timeString, message := parts[0], parts[1]
+
+	var timestamp time.Time
+	if t, err := time.Parse(time.RFC3339Nano, timeString); err == nil {
+		timestamp = t
+	} else {
+		// TODO: Warn
+		return
+	}
+
+	checksum := checksumLine(message)
+
+	if ct.state == tailStateRecover {
+		if ct.lastLineChecksum != nil && bytes.Equal(ct.lastLineChecksum, checksum) {
+			// If just restarted, we might be continuing off a timestamp that results in dupes,
+			// so discard the dupes.
+			return
+		}
 		if ct.fromTimestamp != nil && timestamp.Before(*ct.fromTimestamp) {
 			// We are receiving an old line, skip it
 			return
 		}
-
-		// On restart, start from this timestamp. This isn't exact, however.
-		nextTimestamp := t.Add(time.Millisecond * 1)
-		ct.fromTimestamp = &nextTimestamp
 	}
+
+	ct.lastLineChecksum = checksum
+	ct.state = tailStateNormal
+
+	// On restart, start from this timestamp. This isn't exact, however.
+	nextTimestamp := timestamp.Add(time.Millisecond * 1)
+	ct.fromTimestamp = &nextTimestamp
 
 	ct.eventFunc(LogEvent{
 		Pod:       &ct.pod,
 		Container: &ct.container,
-		Timestamp: timestamp,
+		Timestamp: &timestamp,
 		Message:   parts[1],
 	})
 }
