@@ -1,3 +1,9 @@
+# [v0.9.0](https://github.com/atombender/ktail/releases/tag/v0.8.0) (2018-06-08)
+
+## Fixes
+
+* Fix timestamp comparison logic that was only supposed to be triggered when recovering from a stream error, and which caused lines to be ignored if sharing the exact same timestamp.
+
 # [v0.8.0](https://github.com/atombender/ktail/releases/tag/v0.8.0) (2018-06-05)
 
 ## Fixes
