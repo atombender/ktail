@@ -6,7 +6,7 @@
 
 :white_check_mark: **All containers are tailed by default**, not just a specific one. With `kubectl`, you have to use `-c`. With ktail, just do `ktail foo` and all its containers are automatically tailed.
 
-:white_check_mark: **Keeps running in the presence of failures**. ktail will keep retrying until a container's logs are available.
+:white_check_mark: **Recovers from failure**. ktail will keep retrying forever. `kubectl` just gives up.
 
 # Installation
 
