@@ -90,16 +90,18 @@ func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
 		_ = stream.Close()
 	}()
 
-	scanner := bufio.NewScanner(stream)
-	for scanner.Scan() {
-		line := scanner.Text()
+	r := bufio.NewReader(stream)
+	for {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			if err != io.EOF {
+				return err
+			}
+			return nil
+		}
 		ct.errorBackoff.Reset()
 		ct.receiveLine(line)
 	}
-	if err := scanner.Err(); err != nil && err != io.EOF {
-		return err
-	}
-	return nil
 }
 
 func (ct *ContainerTailer) receiveLine(s string) {
