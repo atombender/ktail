@@ -1,4 +1,10 @@
-# [v0.9.0](https://github.com/atombender/ktail/releases/tag/v0.8.0) (2018-06-08)
+# [v0.10.0](https://github.com/atombender/ktail/releases/tag/v0.10.0) (2018-06-11)
+
+## Fixes
+
+* Fix parsing of very long lines.
+
+# [v0.9.0](https://github.com/atombender/ktail/releases/tag/v0.9.0) (2018-06-08)
 
 ## Fixes
 
