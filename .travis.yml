@@ -2,12 +2,14 @@ distro: trusty
 language: go
 
 go:
-- 1.8
+- "1.11.5"
+
+env:
+- GO111MODULE=on
 
 script:
-- curl https://glide.sh/get | sh
-- go get github.com/mitchellh/gox
-- glide install --strip-vendor
+- env GO111MODULE=off go get github.com/mitchellh/gox
+- go mod download
 - gox -osarch="darwin/amd64 linux/amd64 linux/arm windows/amd64" -output="bin/ktail-{{.OS}}-{{.Arch}}"
 
 deploy:
