@@ -1,3 +1,10 @@
+# [v0.11.0](https://github.com/atombender/ktail/releases/tag/v0.10.0) (2019-06-13)
+
+## Features
+
+* Add `--raw`/`-r` flag, which causes messages to not be formatted with any metadata, unless `--timestamps` is also used.
+* Add `-T` as alias for `--timestamps`.
+
 # [v0.10.0](https://github.com/atombender/ktail/releases/tag/v0.10.0) (2018-06-11)
 
 ## Fixes
