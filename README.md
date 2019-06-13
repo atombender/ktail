@@ -8,50 +8,6 @@
 
 :white_check_mark: **Recovers from failure**. ktail will keep retrying forever. `kubectl` just gives up.
 
-# Installation
-
-## Homebrew
-
-```shell
-$ brew tap atombender/ktail
-$ brew install atombender/ktail/ktail
-```
-
-## Binary installation
-
-Precompiled binaries for Windows, macOS, Linux (x64 and ARM) are available on the [GitHub release page](https://github.com/atombender/ktail/releases).
-
-### Linux
-
-```shell
-$ curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-linux-amd64 -o ktail
-$ chmod +x ktail
-$ sudo mv ./ktail /usr/local/bin/ktail
-```
-
-### macOS
-
-```shell
-$ curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-darwin-amd64 -o ktail
-$ chmod +x ktail
-$ sudo mv ./ktail /usr/local/bin/ktail
-```
-
-### Windows
-
-Download from [GitHub](https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-windows-amd64.exe) and add the binary to your `PATH`.
-
-## From source
-
-This requires Go >= 1.10, as we use Go modules.
-
-```shell
-$ mkdir -p $GOPATH/src/github.com/atombender
-$ cd $GOPATH/src/github.com/atombender
-$ git clone https://github.com/atombender/ktail
-$ go install .
-```
-
 # Usage
 
 Tailing based on label:
@@ -96,6 +52,50 @@ The following variables are available:
 * `Message`: The log message.
 * `Pod`: The pod object. It has properties such as `Name`, `Namspace`, `Status`, etc.
 * `Container`: The container object. It properties such as `Name`.
+
+# Installation
+
+## Homebrew
+
+```shell
+$ brew tap atombender/ktail
+$ brew install atombender/ktail/ktail
+```
+
+## Binary installation
+
+Precompiled binaries for Windows, macOS, Linux (x64 and ARM) are available on the [GitHub release page](https://github.com/atombender/ktail/releases).
+
+### Linux
+
+```shell
+$ curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-linux-amd64 -o ktail
+$ chmod +x ktail
+$ sudo mv ./ktail /usr/local/bin/ktail
+```
+
+### macOS
+
+```shell
+$ curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-darwin-amd64 -o ktail
+$ chmod +x ktail
+$ sudo mv ./ktail /usr/local/bin/ktail
+```
+
+### Windows
+
+Download from [GitHub](https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-windows-amd64.exe) and add the binary to your `PATH`.
+
+## From source
+
+This requires Go >= 1.10, as we use Go modules.
+
+```shell
+$ mkdir -p $GOPATH/src/github.com/atombender
+$ cd $GOPATH/src/github.com/atombender
+$ git clone https://github.com/atombender/ktail
+$ go install .
+```
 
 # Acknowledgements
 
