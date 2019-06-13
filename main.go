@@ -51,7 +51,7 @@ func main() {
 			" just the message, use --template '{{ .Message }}'.")
 	flags.BoolVar(&allNamespaces, "all-namespaces", false, "Apply to all Kubernetes namespaces")
 	flags.BoolVarP(&raw, "raw", "r", false, "Don't format output; output messages only (unless --timestamps)")
-	flags.BoolVar(&timestamps, "timestamps", false, "Include timestamps on each line")
+	flags.BoolVarP(&timestamps, "timestamps", "T", false, "Include timestamps on each line")
 	flags.BoolVarP(&quiet, "quiet", "q", false, "Don't print events about new/deleted pods")
 	flags.BoolVarP(&sinceStart, "since-start", "", false,
 		"Start reading log from the beginning of the container's lifetime.")
