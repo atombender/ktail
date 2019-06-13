@@ -43,14 +43,13 @@ Download from [GitHub](https://github.com/atombender/ktail/releases/download/v0.
 
 ## From source
 
-This requires [Glide](https://glide.sh/) and Go >= 1.7.
+This requires Go >= 1.10, as we use Go modules.
 
 ```shell
 $ mkdir -p $GOPATH/src/github.com/atombender
 $ cd $GOPATH/src/github.com/atombender
 $ git clone https://github.com/atombender/ktail
-$ cd ktail
-$ glide install --strip-vendor
+$ go install .
 ```
 
 # Usage
