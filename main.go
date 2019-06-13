@@ -26,6 +26,7 @@ func main() {
 		allNamespaces         bool
 		quiet                 bool
 		timestamps            bool
+		raw                   bool
 		tmplString            string
 		sinceStart            bool
 		includePatterns       []*regexp.Regexp
@@ -49,6 +50,7 @@ func main() {
 		"Template to format each line. For example, for"+
 			" just the message, use --template '{{ .Message }}'.")
 	flags.BoolVar(&allNamespaces, "all-namespaces", false, "Apply to all Kubernetes namespaces")
+	flags.BoolVarP(&raw, "raw", "r", false, "Don't format output; output messages only (unless --timestamps)")
 	flags.BoolVar(&timestamps, "timestamps", false, "Include timestamps on each line")
 	flags.BoolVarP(&quiet, "quiet", "q", false, "Don't print events about new/deleted pods")
 	flags.BoolVarP(&sinceStart, "since-start", "", false,
@@ -77,9 +79,13 @@ func main() {
 	}
 
 	if tmplString == "" {
-		tmplString = "{{.Pod.Name}}:{{.Container.Name}} {{.Message}}"
-		if allNamespaces {
-			tmplString = "{{.Pod.Namespace}}/" + tmplString
+		if raw {
+			tmplString = `{{.Message}}`
+		} else {
+			tmplString = "{{.Pod.Name}}:{{.Container.Name}} {{.Message}}"
+			if allNamespaces {
+				tmplString = "{{.Pod.Namespace}}/" + tmplString
+			}
 		}
 		if timestamps {
 			tmplString = "{{.Timestamp}} " + tmplString
