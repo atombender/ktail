@@ -53,7 +53,7 @@ func main() {
 	flags.BoolVarP(&raw, "raw", "r", false, "Don't format output; output messages only (unless --timestamps)")
 	flags.BoolVarP(&timestamps, "timestamps", "T", false, "Include timestamps on each line")
 	flags.BoolVarP(&quiet, "quiet", "q", false, "Don't print events about new/deleted pods")
-	flags.BoolVarP(&sinceStart, "since-start", "", false,
+	flags.BoolVarP(&sinceStart, "since-start", "f", false,
 		"Start reading log from the beginning of the container's lifetime.")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
