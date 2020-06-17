@@ -2,7 +2,7 @@ distro: trusty
 language: go
 
 go:
-- "1.11.5"
+- "1.14.4"
 
 env:
 - GO111MODULE=on
