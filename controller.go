@@ -7,7 +7,8 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
@@ -68,10 +69,19 @@ func (ctl *Controller) Run() {
 	if err != nil {
 		panic(err)
 	}
-	if podList, ok := obj.(*v1.PodList); ok {
-		for _, pod := range podList.Items {
+	switch t := obj.(type) {
+	case *v1.PodList:
+		for _, pod := range t.Items {
 			ctl.onInitialAdd(&pod)
 		}
+	case *internalversion.List:
+		for _, item := range t.Items {
+			if pod, ok := item.(*v1.Pod); ok {
+				ctl.onInitialAdd(pod)
+			}
+		}
+	default:
+		panic("unable to get pod list")
 	}
 
 	_, informer := cache.NewIndexerInformer(
@@ -227,7 +237,8 @@ func (ctl *Controller) deleteContainer(pod *v1.Pod, container *v1.Container) {
 func (ctl *Controller) getStartTimestamp(
 	pod *v1.Pod,
 	container *v1.Container,
-	initialAdd bool) (*time.Time, bool) {
+	initialAdd bool,
+) (*time.Time, bool) {
 	if ctl.SinceStart {
 		return nil, true
 	}
