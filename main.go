@@ -9,7 +9,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/pflag"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -29,6 +29,7 @@ func main() {
 		raw                   bool
 		tmplString            string
 		sinceStart            bool
+		showVersion           bool
 		includePatterns       []*regexp.Regexp
 		excludePatternStrings []string
 	)
@@ -55,10 +56,16 @@ func main() {
 	flags.BoolVarP(&quiet, "quiet", "q", false, "Don't print events about new/deleted pods")
 	flags.BoolVarP(&sinceStart, "since-start", "s", false,
 		"Start reading log from the beginning of the container's lifetime.")
+	flags.BoolVarP(&showVersion, "version", "", false, "Show version.")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		fail(err.Error())
 		os.Exit(1)
+	}
+
+	if showVersion {
+		fmt.Printf("ktail %s\n", version)
+		os.Exit(0)
 	}
 
 	var excludePatterns []*regexp.Regexp
