@@ -1,3 +1,26 @@
+# [v1.0.1](https://github.com/atombender/ktail/releases/tag/v1.0.1) (2020-08-10)
+
+## Features
+
+* Adds `--version` flag.
+
+# [v1.0.0](https://github.com/atombender/ktail/releases/tag/v1.0.0) (2020-06-17)
+
+## Fixes
+
+* Fixes issue where `--all-namespaces` would accidentally cause pods to be tailed from their start time.
+
+## Other
+
+* Built with Go 1.14.4.
+
+# [v0.12.0](https://github.com/atombender/ktail/releases/tag/v0.12.0) (2020-05-01)
+
+## Features
+
+* Updates client to support newer versions of Kubernetes.
+* Adds `-s` as shorthand for `--since-start`.
+
 # [v0.11.0](https://github.com/atombender/ktail/releases/tag/v0.10.0) (2019-06-13)
 
 ## Features
