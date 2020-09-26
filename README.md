@@ -94,6 +94,7 @@ This requires Go >= 1.10, as we use Go modules.
 $ mkdir -p $GOPATH/src/github.com/atombender
 $ cd $GOPATH/src/github.com/atombender
 $ git clone https://github.com/atombender/ktail
+$ cd ktail
 $ go install .
 ```
 
