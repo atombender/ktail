@@ -17,7 +17,7 @@ $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
 $(BUILD_DIR)/ktail: $(BUILD_DIR) $(GO_SRC)
-	$(GO) build -i -o ${BUILD_DIR}/ktail github.com/atombender/ktail
+	$(GO) build -o ${BUILD_DIR}/ktail github.com/atombender/ktail
 
 .PHONY: clean
 clean: $(BUILD_DIR)

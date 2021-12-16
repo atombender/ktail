@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -46,18 +47,21 @@ type Controller struct {
 	client    kubernetes.Interface
 	tailers   map[string]*ContainerTailer
 	callbacks Callbacks
+	context   context.Context
 	sync.Mutex
 }
 
 func NewController(
 	client kubernetes.Interface,
 	options ControllerOptions,
+	ctx context.Context,
 	callbacks Callbacks) *Controller {
 	return &Controller{
 		ControllerOptions: options,
 		client:            client,
 		tailers:           map[string]*ContainerTailer{},
 		callbacks:         callbacks,
+		context:           ctx,
 	}
 }
 
@@ -216,7 +220,7 @@ func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, initia
 	ctl.tailers[key] = tailer
 
 	go func() {
-		tailer.Run(func(err error) {
+		tailer.Run(ctl.context, func(err error) {
 			ctl.callbacks.OnError(&targetPod, &targetContainer, err)
 		})
 	}()

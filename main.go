@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -172,6 +173,7 @@ func main() {
 		return fmt.Sprintf("%s:%s", formatPod(pod), container.Name)
 	}
 
+	var ctx = context.TODO()
 	var stdoutMutex sync.Mutex
 	controller := NewController(clientset, ControllerOptions{
 		Namespace:        namespace,
@@ -179,6 +181,7 @@ func main() {
 		ExclusionMatcher: exclusionMatcher,
 		SinceStart:       sinceStart,
 	},
+		ctx,
 		Callbacks{
 			OnEvent: func(event LogEvent) {
 				stdoutMutex.Lock()
