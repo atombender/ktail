@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"io"
 	"net/http"
@@ -65,10 +66,10 @@ func (ct *ContainerTailer) Stop() {
 	ct.stop = true
 }
 
-func (ct *ContainerTailer) Run(onError func(err error)) {
+func (ct *ContainerTailer) Run(ctx context.Context, onError func(err error)) {
 	ct.errorBackoff.Reset()
 	for !ct.stop {
-		stream, err := ct.getStream()
+		stream, err := ct.getStream(ctx)
 		if err != nil {
 			time.Sleep(ct.errorBackoff.Duration())
 			onError(err)
@@ -157,7 +158,7 @@ func (ct *ContainerTailer) receiveLine(s string) {
 	})
 }
 
-func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
+func (ct *ContainerTailer) getStream(ctx context.Context) (io.ReadCloser, error) {
 	var sinceTime *metav1.Time
 	if ct.fromTimestamp != nil {
 		sinceTime = &metav1.Time{
@@ -172,7 +173,7 @@ func (ct *ContainerTailer) getStream() (io.ReadCloser, error) {
 			Follow:     true,
 			Timestamps: true,
 			SinceTime:  sinceTime,
-		}).Stream()
+		}).Stream(ctx)
 		if err == nil {
 			return stream, nil
 		}
