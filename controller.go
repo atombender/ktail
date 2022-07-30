@@ -270,15 +270,6 @@ func buildKey(pod *v1.Pod, container *v1.Container) string {
 	return fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
 }
 
-func findContainerID(pod *v1.Pod, container *v1.Container) string {
-	for _, c := range allContainerStatusesForPod(pod) {
-		if c.Name == container.Name {
-			return c.ContainerID
-		}
-	}
-	return container.Name // Fallback, should never happen
-}
-
 func allContainerStatusesForPod(pod *v1.Pod) []v1.ContainerStatus {
 	statuses := make([]v1.ContainerStatus, len(pod.Status.ContainerStatuses)+len(pod.Status.InitContainerStatuses))
 	return append(
