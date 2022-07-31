@@ -267,7 +267,7 @@ func (ctl *Controller) getStartTimestamp(
 }
 
 func buildKey(pod *v1.Pod, container *v1.Container) string {
-	return fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
+	return fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, container.Name)
 }
 
 func allContainerStatusesForPod(pod *v1.Pod) []v1.ContainerStatus {
