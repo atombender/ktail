@@ -92,7 +92,7 @@ func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
 	}()
 
 	r := bufio.NewReader(stream)
-	for {
+	for !ct.stop {
 		line, err := r.ReadString('\n')
 		if err != nil {
 			if err != io.EOF {
@@ -103,6 +103,7 @@ func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
 		ct.errorBackoff.Reset()
 		ct.receiveLine(line)
 	}
+	return nil
 }
 
 func (ct *ContainerTailer) receiveLine(s string) {
