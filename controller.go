@@ -62,7 +62,7 @@ func NewController(
 	}
 }
 
-func (ctl *Controller) Run() {
+func (ctl *Controller) Run(ctx context.Context) error {
 	podListWatcher := cache.NewListWatchFromClient(
 		ctl.client.CoreV1().RESTClient(), "pods", ctl.Namespace, fields.Everything())
 
@@ -106,7 +106,12 @@ func (ctl *Controller) Run() {
 
 	stopCh := make(chan struct{}, 1)
 	go informer.Run(stopCh)
-	<-stopCh
+	select {
+	case <-stopCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (ctl *Controller) onInitialAdd(pod *v1.Pod) {
