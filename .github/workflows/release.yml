@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  test:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with: {go-version: '^1.18'}
+    - run: |
+        env GO111MODULE=off go get github.com/mitchellh/gox
+    - run: |
+        gox -osarch="darwin/amd64 darwin/arm64 linux/amd64 linux/arm windows/amd64" -output="groqfmt-{{.OS}}-{{.Arch}}"
+    - uses: marvinpinto/action-automatic-releases@v1.2.1
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        files: |
+          groqfmt-darwin-amd64
+          groqfmt-linux-amd64
+          groqfmt-linux-arm
+          groqfmt-windows-amd64.exe
