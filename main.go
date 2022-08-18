@@ -198,8 +198,8 @@ func main() {
 			if !raw {
 				if timestamps {
 					line = col.metadata.Sprint(formatTimestamp(event.Timestamp))
+					line += " "
 				}
-				line += " "
 				if allNamespaces {
 					line += col.labels.Sprint(fmt.Sprintf("%s/%s:%s",
 						event.Pod.Namespace, event.Pod.Name, event.Container.Name))
