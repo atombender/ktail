@@ -10,15 +10,7 @@
 
 # Usage
 
-Tailing based on label:
-
-```shell
-$ ktail -l app=myapp
-```
-
-This will tail all containers in all pods matching the label `app=myapp`. As new pods are created, it will also automatically tail those, too.
-
-It's also possible to filter on pod/container name. The following will match all containers whose pod name or container name contains the substring `foo`:
+Ktail makes it super easy to tail by pod or container name. The following will match all containers whose pod name or container name contains the substring `foo`:
 
 ```shell
 $ ktail foo
@@ -31,6 +23,14 @@ $ ktail '^foo'
 ```
 
 If no filters are specified, _all_ pods in the current namespace are tailed.
+
+Tailing supports the usual things like labels:
+
+```shell
+$ ktail -l app=myapp
+```
+
+This will tail all containers in all pods matching the label `app=myapp`. As new pods are created, it will also automatically tail those, too.
 
 To abort tailing, hit `Ctrl+C`.
 
