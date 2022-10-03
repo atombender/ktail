@@ -102,14 +102,6 @@ func main() {
 		includePatterns = append(includePatterns, r)
 	}
 
-	if kubeconfigPath == "" {
-		if os.Getenv("KUBECONFIG") != "" {
-			kubeconfigPath = os.Getenv("KUBECONFIG")
-		} else {
-			kubeconfigPath = clientcmd.RecommendedHomeFile
-		}
-	}
-
 	labelSelector := labels.Everything()
 	if labelSelectorExpr != "" {
 		if sel, err := labels.Parse(labelSelectorExpr); err != nil {
@@ -122,10 +114,16 @@ func main() {
 	inclusionMatcher := buildMatcher(includePatterns, labelSelector, true)
 	exclusionMatcher := buildMatcher(excludePatterns, nil, false)
 
-	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{
+	var loadingRules *clientcmd.ClientConfigLoadingRules
+	if kubeconfigPath != "" {
+		loadingRules = &clientcmd.ClientConfigLoadingRules{
 			ExplicitPath: kubeconfigPath,
-		},
+		}
+	} else {
+		loadingRules = clientcmd.NewDefaultClientConfigLoadingRules()
+	}
+
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules,
 		&clientcmd.ConfigOverrides{
 			CurrentContext: contextName,
 		},
