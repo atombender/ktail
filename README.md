@@ -66,26 +66,6 @@ $ brew install atombender/ktail/ktail
 
 Precompiled binaries for Windows, macOS, Linux (x64 and ARM) are available on the [GitHub release page](https://github.com/atombender/ktail/releases).
 
-### Linux
-
-```shell
-$ curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-linux-amd64 -o ktail
-$ chmod +x ktail
-$ sudo mv ./ktail /usr/local/bin/ktail
-```
-
-### macOS
-
-```shell
-$ curl -L https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-darwin-amd64 -o ktail
-$ chmod +x ktail
-$ sudo mv ./ktail /usr/local/bin/ktail
-```
-
-### Windows
-
-Download from [GitHub](https://github.com/atombender/ktail/releases/download/v0.7.0/ktail-windows-amd64.exe) and add the binary to your `PATH`.
-
 ## From source
 
 This requires Go >= 1.10, as we use Go modules.
