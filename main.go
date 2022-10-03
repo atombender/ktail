@@ -119,18 +119,23 @@ func main() {
 	inclusionMatcher := buildMatcher(includePatterns, labelSelector, true)
 	exclusionMatcher := buildMatcher(excludePatterns, nil, false)
 
-	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{
 			ExplicitPath: kubeconfigPath,
 		},
 		&clientcmd.ConfigOverrides{
 			CurrentContext: contextName,
-		})
+		},
+		nil)
 
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
 		fail(err.Error())
 	}
+
+	// Set higher rate limits
+	config.QPS = 100
+	config.Burst = 100
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
