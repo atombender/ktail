@@ -1,6 +1,6 @@
 #!/bin/sh
 
-v=$(git tag --contains HEAD)
+v=$(git tag -l | tail -n1)
 if [ "$v" = "" ]; then
   echo "Cannot determine tag." >&2
   exit 1
