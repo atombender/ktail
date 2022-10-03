@@ -260,7 +260,7 @@ func main() {
 							break
 						}
 					}
-					printInfo(fmt.Sprintf("Container left (%s) [%s]\n", status,
+					printInfo(fmt.Sprintf("Container left (%s) [%s]", status,
 						formatPodAndContainer(pod, container)))
 				}
 			},
