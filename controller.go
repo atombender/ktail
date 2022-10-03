@@ -16,7 +16,7 @@ import (
 )
 
 type ControllerOptions struct {
-	Namespace        string
+	Namespaces       []string
 	InclusionMatcher Matcher
 	ExclusionMatcher Matcher
 	SinceStart       bool
@@ -63,55 +63,56 @@ func NewController(
 }
 
 func (ctl *Controller) Run(ctx context.Context) error {
-	podListWatcher := cache.NewListWatchFromClient(
-		ctl.client.CoreV1().RESTClient(), "pods", ctl.Namespace, fields.Everything())
+	stopCh := make(chan struct{})
+	defer close(stopCh)
 
-	obj, err := podListWatcher.List(metav1.ListOptions{})
-	if err != nil {
-		panic(err)
-	}
-	switch t := obj.(type) {
-	case *v1.PodList:
-		for _, pod := range t.Items {
-			ctl.onInitialAdd(&pod)
+	for _, ns := range ctl.Namespaces {
+		podListWatcher := cache.NewListWatchFromClient(
+			ctl.client.CoreV1().RESTClient(), "pods", ns, fields.Everything())
+
+		obj, err := podListWatcher.List(metav1.ListOptions{})
+		if err != nil {
+			panic(err)
 		}
-	case *internalversion.List:
-		for _, item := range t.Items {
-			if pod, ok := item.(*v1.Pod); ok {
-				ctl.onInitialAdd(pod)
+		switch t := obj.(type) {
+		case *v1.PodList:
+			for _, pod := range t.Items {
+				ctl.onInitialAdd(&pod)
 			}
+		case *internalversion.List:
+			for _, item := range t.Items {
+				if pod, ok := item.(*v1.Pod); ok {
+					ctl.onInitialAdd(pod)
+				}
+			}
+		default:
+			panic("unable to get pod list")
 		}
-	default:
-		panic("unable to get pod list")
+
+		_, informer := cache.NewIndexerInformer(
+			podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
+				AddFunc: func(obj interface{}) {
+					if pod, ok := obj.(*v1.Pod); ok {
+						ctl.onAdd(pod)
+					}
+				},
+				UpdateFunc: func(old interface{}, new interface{}) {
+					if pod, ok := new.(*v1.Pod); ok {
+						ctl.onUpdate(pod)
+					}
+				},
+				DeleteFunc: func(obj interface{}) {
+					if pod, ok := obj.(*v1.Pod); ok {
+						ctl.onDelete(pod)
+					}
+				},
+			}, cache.Indexers{})
+
+		go informer.Run(stopCh)
 	}
 
-	_, informer := cache.NewIndexerInformer(
-		podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if pod, ok := obj.(*v1.Pod); ok {
-					ctl.onAdd(pod)
-				}
-			},
-			UpdateFunc: func(old interface{}, new interface{}) {
-				if pod, ok := new.(*v1.Pod); ok {
-					ctl.onUpdate(pod)
-				}
-			},
-			DeleteFunc: func(obj interface{}) {
-				if pod, ok := obj.(*v1.Pod); ok {
-					ctl.onDelete(pod)
-				}
-			},
-		}, cache.Indexers{})
-
-	stopCh := make(chan struct{}, 1)
-	go informer.Run(stopCh)
-	select {
-	case <-stopCh:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 func (ctl *Controller) onInitialAdd(pod *v1.Pod) {

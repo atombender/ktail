@@ -26,7 +26,7 @@ func main() {
 		contextName           string
 		kubeconfigPath        string
 		labelSelectorExpr     string
-		namespace             string
+		namespaces            []string
 		allNamespaces         bool
 		quiet                 bool
 		timestamps            bool
@@ -46,7 +46,7 @@ func main() {
 	flags.StringVar(&contextName, "context", "", "Kubernetes context name")
 	flags.StringVar(&kubeconfigPath, "kubeconfig", "",
 		"Path to kubeconfig (only required out-of-cluster)")
-	flags.StringVarP(&namespace, "namespace", "n", "", "Kubernetes namespace")
+	flags.StringArrayVarP(&namespaces, "namespace", "n", []string{}, "Kubernetes namespace")
 	flags.StringArrayVarP(&excludePatternStrings, "exclude", "x", []string{},
 		"Exclude using a regular expression. Pattern can be repeated. Takes priority over"+
 			" include patterns and labels.")
@@ -140,12 +140,12 @@ func main() {
 	}
 
 	if allNamespaces {
-		namespace = v1.NamespaceAll
-	} else if namespace == "" {
+		namespaces = []string{v1.NamespaceAll}
+	} else if len(namespaces) == 0 {
 		if rawConfig.Contexts[rawConfig.CurrentContext].Namespace == "" {
-			namespace = v1.NamespaceDefault
+			namespaces = []string{v1.NamespaceDefault}
 		} else {
-			namespace = rawConfig.Contexts[rawConfig.CurrentContext].Namespace
+			namespaces = []string{rawConfig.Contexts[rawConfig.CurrentContext].Namespace}
 		}
 	}
 
@@ -159,7 +159,7 @@ func main() {
 	}
 
 	formatPod := func(pod *v1.Pod) string {
-		if allNamespaces {
+		if allNamespaces || len(namespaces) > 1 {
 			return fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
 		}
 		return pod.Name
@@ -224,7 +224,7 @@ func main() {
 
 	var stdoutMutex sync.Mutex
 	controller := NewController(clientset, ControllerOptions{
-		Namespace:        namespace,
+		Namespaces:       namespaces,
 		InclusionMatcher: inclusionMatcher,
 		ExclusionMatcher: exclusionMatcher,
 		SinceStart:       sinceStart,
