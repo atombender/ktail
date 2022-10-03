@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"sync"
 	"text/template"
-	"time"
 
 	"github.com/fatih/color"
+	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -19,9 +19,12 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 func main() {
+	klog.SetLogger(logr.New(&kubeLogger{}))
+
 	var (
 		contextName           string
 		kubeconfigPath        string
@@ -276,24 +279,6 @@ func main() {
 	if err := controller.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		printError(err.Error())
 	}
-}
-
-func printInfo(format string, args ...interface{}) {
-	message := fmt.Sprintf(format, args...)
-	_, _ = fmt.Fprintf(os.Stderr, colorInfo(fmt.Sprintf("==> %s\n", message)))
-}
-
-func printError(format string, args ...interface{}) {
-	message := fmt.Sprintf(format, args...)
-	_, _ = fmt.Fprintf(os.Stderr, colorError(fmt.Sprintf("==> %s\n", message)))
-}
-
-func formatTimestamp(t *time.Time) string {
-	s := t.Local().Format("2006-01-02T15:04:05.999")
-	for len(s) < 23 {
-		s += "0"
-	}
-	return s
 }
 
 func fail(format string, args ...interface{}) {
