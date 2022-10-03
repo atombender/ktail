@@ -206,12 +206,12 @@ func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, initia
 		return
 	}
 
-	if !ctl.callbacks.OnEnter(pod, container, initialAdd) {
+	timestamp, ok := ctl.getStartTimestamp(pod, container, initialAdd)
+	if !ok {
 		return
 	}
 
-	timestamp, ok := ctl.getStartTimestamp(pod, container, initialAdd)
-	if !ok {
+	if !ctl.callbacks.OnEnter(pod, container, initialAdd) {
 		return
 	}
 
