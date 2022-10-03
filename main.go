@@ -65,6 +65,9 @@ func main() {
 	flags.BoolVarP(&noColor, "no-color", "", false, "Disable color.")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
+		if err == pflag.ErrHelp {
+			os.Exit(2)
+		}
 		fail(err.Error())
 		os.Exit(1)
 	}
