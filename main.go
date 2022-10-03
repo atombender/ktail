@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"text/template"
 
+	_ "github.com/alecthomas/chroma/formatters"
+	"github.com/alecthomas/chroma/quick"
 	"github.com/fatih/color"
 	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
@@ -220,7 +223,18 @@ func main() {
 				line += " "
 			}
 
-			line += event.Message
+			payload := event.Message
+			if !noColor && len(payload) >= 2 && payload[0] == '{' && payload[len(payload)-1] == '}' {
+				var dest interface{}
+				if err := json.Unmarshal([]byte(payload), &dest); err == nil {
+					var buf bytes.Buffer
+					if err := quick.Highlight(&buf, payload, "json", "terminal256", "monokai"); err == nil {
+						payload = buf.String()
+					}
+				}
+			}
+
+			line += payload
 
 			_, err := fmt.Fprintln(os.Stdout, line)
 			return err

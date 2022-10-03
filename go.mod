@@ -3,6 +3,7 @@ module github.com/atombender/ktail
 go 1.17
 
 require (
+	github.com/alecthomas/chroma v0.10.0
 	github.com/fatih/color v1.7.0
 	github.com/go-logr/logr v1.2.0
 	github.com/jpillora/backoff v1.0.0
@@ -16,6 +17,7 @@ require (
 require (
 	cloud.google.com/go v0.81.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
