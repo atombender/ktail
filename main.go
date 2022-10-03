@@ -299,7 +299,8 @@ func main() {
 }
 
 func fail(format string, args ...interface{}) {
-	_, _ = fmt.Fprintf(os.Stderr, format, args...)
+	msg := fmt.Sprintf(format, args...)
+	_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("fatal: %s\n", msg))
 	os.Exit(1)
 }
 
