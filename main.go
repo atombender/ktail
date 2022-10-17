@@ -43,6 +43,7 @@ func main() {
 		includePatterns       []*regexp.Regexp
 		excludePatternStrings []string
 		noColor               bool
+		colorMode             string
 	)
 
 	flags := pflag.NewFlagSet("ktail", pflag.ExitOnError)
@@ -68,7 +69,9 @@ func main() {
 	flags.BoolVarP(&sinceStart, "since-start", "s", false,
 		"Start reading log from the beginning of the container's lifetime.")
 	flags.BoolVarP(&showVersion, "version", "", false, "Show version.")
-	flags.BoolVarP(&noColor, "no-color", "", false, "Disable color.")
+	flags.BoolVar(&noColor, "no-color", false, "Alias for --color=never.")
+	flags.StringVar(&colorMode, "color", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'.")
+	flags.StringVar(&colorMode, "colour", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'.")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		if err == pflag.ErrHelp {
@@ -78,7 +81,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	color.NoColor = noColor
+	if noColor {
+		colorMode = "never"
+	}
+	var colorEnabled bool
+	switch colorMode {
+	case "always":
+		colorEnabled = true
+	case "auto":
+		colorEnabled = isTerminal(os.Stdout)
+	case "never":
+	}
+
+	color.NoColor = !colorEnabled
 
 	if showVersion {
 		fmt.Printf("ktail %s\n", version)
@@ -222,7 +237,7 @@ func main() {
 			}
 
 			payload := event.Message
-			if !noColor && len(payload) >= 2 && payload[0] == '{' && payload[len(payload)-1] == '}' {
+			if colorEnabled && len(payload) >= 2 && payload[0] == '{' && payload[len(payload)-1] == '}' {
 				var dest interface{}
 				if err := json.Unmarshal([]byte(payload), &dest); err == nil {
 					var buf bytes.Buffer
