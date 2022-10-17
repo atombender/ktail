@@ -49,14 +49,17 @@ func main() {
 		colorScheme           string
 	)
 
-	flags := pflag.NewFlagSet("ktail", pflag.ExitOnError)
+	flags := pflag.NewFlagSet("ktail", pflag.ContinueOnError)
+	flags.SortFlags = false
 	flags.Usage = func() {
+		fmt.Printf("Usage: ktail [OPTION ...] PATTERN [PATTERN ...]\n")
 		flags.PrintDefaults()
 	}
 	flags.StringVar(&contextName, "context", "", "Kubernetes context name")
 	flags.StringVar(&kubeconfigPath, "kubeconfig", "",
 		"Path to kubeconfig (only required out-of-cluster)")
 	flags.StringArrayVarP(&namespaces, "namespace", "n", []string{}, "Kubernetes namespace")
+	flags.BoolVar(&allNamespaces, "all-namespaces", false, "Apply to all Kubernetes namespaces")
 	flags.StringArrayVarP(&excludePatternStrings, "exclude", "x", []string{},
 		"Exclude using a regular expression. Pattern can be repeated. Takes priority over"+
 			" include patterns and labels.")
@@ -65,7 +68,6 @@ func main() {
 	flags.StringVarP(&tmplString, "template", "t", "",
 		"Template to format each line. For example, for"+
 			" just the message, use --template '{{ .Message }}'.")
-	flags.BoolVar(&allNamespaces, "all-namespaces", false, "Apply to all Kubernetes namespaces")
 	flags.BoolVarP(&raw, "raw", "r", false, "Don't format output; output messages only (unless --timestamps)")
 	flags.BoolVarP(&timestamps, "timestamps", "T", false, "Include timestamps on each line")
 	flags.BoolVarP(&quiet, "quiet", "q", false, "Don't print events about new/deleted pods")
@@ -73,10 +75,12 @@ func main() {
 		"Start reading log from the beginning of the container's lifetime.")
 	flags.BoolVarP(&showVersion, "version", "", false, "Show version.")
 	flags.BoolVar(&noColor, "no-color", false, "Alias for --color=never.")
-	flags.StringVar(&colorMode, "color", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'.")
+	flags.StringVar(&colorMode, "color", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'. (Aliased as --colour.)")
 	flags.StringVar(&colorMode, "colour", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'.")
-	flags.StringVar(&colorScheme, "color-scheme", defaultColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles).")
+	flags.StringVar(&colorScheme, "color-scheme", defaultColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles). (Aliased as --colour-scheme.)")
 	flags.StringVar(&colorScheme, "colour-scheme", defaultColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles).")
+	_ = flags.MarkHidden("colour")
+	_ = flags.MarkHidden("colour-scheme")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		if err == pflag.ErrHelp {
