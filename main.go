@@ -25,6 +25,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const defaultColorScheme = "bw"
+
 func main() {
 	klog.SetLogger(logr.New(&kubeLogger{}))
 
@@ -44,6 +46,7 @@ func main() {
 		excludePatternStrings []string
 		noColor               bool
 		colorMode             string
+		colorScheme           string
 	)
 
 	flags := pflag.NewFlagSet("ktail", pflag.ExitOnError)
@@ -72,6 +75,8 @@ func main() {
 	flags.BoolVar(&noColor, "no-color", false, "Alias for --color=never.")
 	flags.StringVar(&colorMode, "color", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'.")
 	flags.StringVar(&colorMode, "colour", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'.")
+	flags.StringVar(&colorScheme, "color-scheme", defaultColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles).")
+	flags.StringVar(&colorScheme, "colour-scheme", defaultColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles).")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		if err == pflag.ErrHelp {
@@ -241,7 +246,7 @@ func main() {
 				var dest interface{}
 				if err := json.Unmarshal([]byte(payload), &dest); err == nil {
 					var buf bytes.Buffer
-					if err := quick.Highlight(&buf, payload, "json", "terminal256", "monokai"); err == nil {
+					if err := quick.Highlight(&buf, payload, "json", "terminal256", colorScheme); err == nil {
 						payload = buf.String()
 					}
 				}
