@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jpillora/backoff"
@@ -54,7 +55,7 @@ type ContainerTailer struct {
 	client           kubernetes.Interface
 	pod              v1.Pod
 	container        v1.Container
-	stop             bool
+	stop             atomic.Bool
 	eventFunc        LogEventFunc
 	fromTimestamp    *time.Time
 	errorBackoff     *backoff.Backoff
@@ -63,12 +64,12 @@ type ContainerTailer struct {
 }
 
 func (ct *ContainerTailer) Stop() {
-	ct.stop = true
+	ct.stop.Store(true)
 }
 
 func (ct *ContainerTailer) Run(ctx context.Context, onError func(err error)) {
 	ct.errorBackoff.Reset()
-	for !ct.stop {
+	for !ct.stop.Load() {
 		stream, err := ct.getStream(ctx)
 		if err != nil {
 			time.Sleep(ct.errorBackoff.Duration())
@@ -92,13 +93,13 @@ func (ct *ContainerTailer) runStream(stream io.ReadCloser) error {
 	}()
 
 	r := bufio.NewReader(stream)
-	for !ct.stop {
+	for {
 		line, err := r.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			if err != io.EOF {
-				return err
-			}
-			return nil
+			return err
 		}
 		ct.errorBackoff.Reset()
 		ct.receiveLine(line)
