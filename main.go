@@ -267,12 +267,13 @@ func main() {
 	defer cancel()
 
 	var stdoutMutex sync.Mutex
-	controller := NewController(clientset, ControllerOptions{
-		Namespaces:       namespaces,
-		InclusionMatcher: inclusionMatcher,
-		ExclusionMatcher: exclusionMatcher,
-		SinceStart:       sinceStart,
-	},
+	controller := NewController(clientset,
+		ControllerOptions{
+			Namespaces:       namespaces,
+			InclusionMatcher: inclusionMatcher,
+			ExclusionMatcher: exclusionMatcher,
+			SinceStart:       sinceStart,
+		},
 		Callbacks{
 			OnEvent: func(event LogEvent) {
 				stdoutMutex.Lock()

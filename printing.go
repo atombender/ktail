@@ -27,20 +27,18 @@ func formatTimestamp(t *time.Time) string {
 	return s
 }
 
-type kubeLogger struct {
-	x string
-}
+type kubeLogger struct{}
 
-func (l *kubeLogger) Init(info logr.RuntimeInfo)                           {}
-func (l *kubeLogger) Enabled(level int) bool                               { return true }
-func (l *kubeLogger) WithValues(keysAndValues ...interface{}) logr.LogSink { return l }
-func (l *kubeLogger) WithName(name string) logr.LogSink                    { return l }
+func (l *kubeLogger) Init(logr.RuntimeInfo)                  {}
+func (l *kubeLogger) Enabled(int) bool                       { return true }
+func (l *kubeLogger) WithValues(...interface{}) logr.LogSink { return l }
+func (l *kubeLogger) WithName(string) logr.LogSink           { return l }
 
-func (l *kubeLogger) Info(level int, msg string, keysAndValues ...interface{}) {
+func (l *kubeLogger) Info(_ int, msg string, keysAndValues ...interface{}) {
 	printInfo(formatKeysAndValues(msg, keysAndValues...))
 }
 
-func (l *kubeLogger) Error(err error, msg string, keysAndValues ...interface{}) {
+func (l *kubeLogger) Error(_ error, msg string, keysAndValues ...interface{}) {
 	printError(formatKeysAndValues(msg, keysAndValues...))
 }
 

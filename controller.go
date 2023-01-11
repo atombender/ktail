@@ -23,16 +23,9 @@ type ControllerOptions struct {
 }
 
 type (
-	ContainerEnterFunc func(
-		pod *v1.Pod,
-		container *v1.Container,
-		initialAddPhase bool) bool
-
-	ContainerExitFunc func(pod *v1.Pod,
-		container *v1.Container)
-
-	ContainerErrorFunc func(pod *v1.Pod,
-		container *v1.Container, err error)
+	ContainerEnterFunc func(pod *v1.Pod, container *v1.Container, initialAddPhase bool) bool
+	ContainerExitFunc  func(pod *v1.Pod, container *v1.Container)
+	ContainerErrorFunc func(pod *v1.Pod, container *v1.Container, err error)
 )
 
 type Callbacks struct {
@@ -50,10 +43,7 @@ type Controller struct {
 	sync.Mutex
 }
 
-func NewController(
-	client kubernetes.Interface,
-	options ControllerOptions,
-	callbacks Callbacks) *Controller {
+func NewController(client kubernetes.Interface, options ControllerOptions, callbacks Callbacks) *Controller {
 	return &Controller{
 		ControllerOptions: options,
 		client:            client,
@@ -241,11 +231,7 @@ func (ctl *Controller) deleteContainer(pod *v1.Pod, container *v1.Container) {
 	}
 }
 
-func (ctl *Controller) getStartTimestamp(
-	pod *v1.Pod,
-	container *v1.Container,
-	initialAdd bool,
-) (*time.Time, bool) {
+func (ctl *Controller) getStartTimestamp(pod *v1.Pod, container *v1.Container, initialAdd bool) (*time.Time, bool) {
 	if ctl.SinceStart {
 		return nil, true
 	}
