@@ -29,10 +29,11 @@ type (
 )
 
 type Callbacks struct {
-	OnEvent LogEventFunc
-	OnEnter ContainerEnterFunc
-	OnExit  ContainerExitFunc
-	OnError ContainerErrorFunc
+	OnEvent             LogEventFunc
+	OnEnter             ContainerEnterFunc
+	OnExit              ContainerExitFunc
+	OnError             ContainerErrorFunc
+	OnNothingDiscovered func()
 }
 
 type Controller struct {
@@ -56,27 +57,32 @@ func (ctl *Controller) Run(ctx context.Context) error {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
+	discoveredAny := false
 	for _, ns := range ctl.Namespaces {
 		podListWatcher := cache.NewListWatchFromClient(
 			ctl.client.CoreV1().RESTClient(), "pods", ns, fields.Everything())
 
 		obj, err := podListWatcher.List(metav1.ListOptions{})
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("listing pods in %q: %w", ns, err)
 		}
 		switch t := obj.(type) {
 		case *v1.PodList:
 			for _, pod := range t.Items {
-				ctl.onInitialAdd(&pod)
+				if ctl.onInitialAdd(&pod) {
+					discoveredAny = true
+				}
 			}
 		case *internalversion.List:
 			for _, item := range t.Items {
 				if pod, ok := item.(*v1.Pod); ok {
-					ctl.onInitialAdd(pod)
+					if ctl.onInitialAdd(pod) {
+						discoveredAny = true
+					}
 				}
 			}
 		default:
-			panic("unable to get pod list")
+			panic(fmt.Sprintf("unexpected return type %T when listing pods", obj))
 		}
 
 		_, informer := cache.NewIndexerInformer(
@@ -101,21 +107,29 @@ func (ctl *Controller) Run(ctx context.Context) error {
 		go informer.Run(stopCh)
 	}
 
+	if !discoveredAny {
+		ctl.callbacks.OnNothingDiscovered()
+	}
+
 	<-ctx.Done()
 	return ctx.Err()
 }
 
-func (ctl *Controller) onInitialAdd(pod *v1.Pod) {
+func (ctl *Controller) onInitialAdd(pod *v1.Pod) bool {
+	added := false
 	for _, container := range pod.Spec.InitContainers {
 		if ctl.shouldIncludeContainer(pod, &container) {
 			ctl.addContainer(pod, &container, true)
+			added = true
 		}
 	}
 	for _, container := range pod.Spec.Containers {
 		if ctl.shouldIncludeContainer(pod, &container) {
 			ctl.addContainer(pod, &container, true)
+			added = true
 		}
 	}
+	return added
 }
 
 func (ctl *Controller) onAdd(pod *v1.Pod) {

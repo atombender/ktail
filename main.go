@@ -312,6 +312,9 @@ func main() {
 						formatPodAndContainer(pod, container)))
 				}
 			},
+			OnNothingDiscovered: func() {
+				printInfo("No matching pods running yet")
+			},
 			OnError: func(pod *v1.Pod, container *v1.Container, err error) {
 				printError(fmt.Sprintf("Error while tailing container [%s]: %s",
 					formatPodAndContainer(pod, container), err))
