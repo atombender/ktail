@@ -44,6 +44,21 @@ To abort tailing, hit `Ctrl+C`.
 
 Run `ktail -h` for usage.
 
+## Configuration
+
+Ktail will read the file `$HOME/.config/ktail/config.yml` if it exists. This must be a file in YAML format. The following options can be set (these are the defaults):
+
+```yaml
+noColor: false
+raw: false
+timestamps: false
+quiet: false
+colorScheme: bw
+colorMode: auto
+kubeConfigPath: ""
+templateString: ""
+```
+
 ## Templating
 
 ktail has a basic output format. To override, you can use a simple Go template. For example:

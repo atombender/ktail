@@ -25,17 +25,21 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const defaultColorScheme = "bw"
-
 func main() {
 	klog.SetLogger(logr.New(&kubeLogger{}))
 
+	cfg := Config{
+		ColorMode:   "auto",
+		ColorScheme: "bw",
+	}
+
 	var (
-		contextName           string
+		contextName       string
+		labelSelectorExpr string
+		namespaces        []string
+		allNamespaces     bool
+
 		kubeconfigPath        string
-		labelSelectorExpr     string
-		namespaces            []string
-		allNamespaces         bool
 		quiet                 bool
 		timestamps            bool
 		raw                   bool
@@ -49,6 +53,10 @@ func main() {
 		colorScheme           string
 	)
 
+	if err := cfg.LoadDefault(); err != nil {
+		fail(err.Error())
+	}
+
 	flags := pflag.NewFlagSet("ktail", pflag.ContinueOnError)
 	flags.SortFlags = false
 	flags.Usage = func() {
@@ -56,8 +64,6 @@ func main() {
 		flags.PrintDefaults()
 	}
 	flags.StringVar(&contextName, "context", "", "Kubernetes context name")
-	flags.StringVar(&kubeconfigPath, "kubeconfig", "",
-		"Path to kubeconfig (only required out-of-cluster)")
 	flags.StringArrayVarP(&namespaces, "namespace", "n", []string{}, "Kubernetes namespace")
 	flags.BoolVar(&allNamespaces, "all-namespaces", false, "Apply to all Kubernetes namespaces")
 	flags.StringArrayVarP(&excludePatternStrings, "exclude", "x", []string{},
@@ -65,20 +71,23 @@ func main() {
 			" include patterns and labels.")
 	flags.StringVarP(&labelSelectorExpr, "selector", "l", "",
 		"Match pods by label (see 'kubectl get -h' for syntax).")
-	flags.StringVarP(&tmplString, "template", "t", "",
-		"Template to format each line. For example, for"+
-			" just the message, use --template '{{ .Message }}'.")
-	flags.BoolVarP(&raw, "raw", "r", false, "Don't format output; output messages only (unless --timestamps)")
-	flags.BoolVarP(&timestamps, "timestamps", "T", false, "Include timestamps on each line")
-	flags.BoolVarP(&quiet, "quiet", "q", false, "Don't print events about new/deleted pods")
 	flags.BoolVarP(&sinceStart, "since-start", "s", false,
 		"Start reading log from the beginning of the container's lifetime.")
 	flags.BoolVarP(&showVersion, "version", "", false, "Show version.")
-	flags.BoolVar(&noColor, "no-color", false, "Alias for --color=never.")
-	flags.StringVar(&colorMode, "color", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'. (Aliased as --colour.)")
-	flags.StringVar(&colorMode, "colour", "auto", "Set color mode: one of 'auto' (default), 'never', or 'always'.")
-	flags.StringVar(&colorScheme, "color-scheme", defaultColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles). (Aliased as --colour-scheme.)")
-	flags.StringVar(&colorScheme, "colour-scheme", defaultColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles).")
+
+	flags.StringVar(&kubeconfigPath, "kubeconfig", cfg.KubeConfigPath,
+		"Path to kubeconfig (only required out-of-cluster)")
+	flags.StringVarP(&tmplString, "template", "t", cfg.TemplateString,
+		"Template to format each line. For example, for"+
+			" just the message, use --template '{{ .Message }}'.")
+	flags.BoolVarP(&raw, "raw", "r", cfg.Raw, "Don't format output; output messages only (unless --timestamps)")
+	flags.BoolVarP(&timestamps, "timestamps", "T", cfg.Timestamps, "Include timestamps on each line")
+	flags.BoolVarP(&quiet, "quiet", "q", cfg.Quiet, "Don't print events about new/deleted pods")
+	flags.BoolVar(&noColor, "no-color", cfg.NoColor, "Alias for --color=never.")
+	flags.StringVar(&colorMode, "color", cfg.ColorMode, "Set color mode: one of 'auto' (default), 'never', or 'always'. (Aliased as --colour.)")
+	flags.StringVar(&colorMode, "colour", cfg.ColorMode, "Set color mode: one of 'auto' (default), 'never', or 'always'.")
+	flags.StringVar(&colorScheme, "color-scheme", cfg.ColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles). (Aliased as --colour-scheme.)")
+	flags.StringVar(&colorScheme, "colour-scheme", cfg.ColorScheme, "Set color scheme (see https://github.com/alecthomas/chroma/tree/master/styles).")
 	_ = flags.MarkHidden("colour")
 	_ = flags.MarkHidden("colour-scheme")
 
@@ -87,7 +96,6 @@ func main() {
 			os.Exit(2)
 		}
 		fail(err.Error())
-		os.Exit(1)
 	}
 
 	if noColor {
