@@ -20,6 +20,7 @@ type ControllerOptions struct {
 	InclusionMatcher Matcher
 	ExclusionMatcher Matcher
 	SinceStart       bool
+	Since            *time.Time
 }
 
 type (
@@ -211,19 +212,19 @@ func (ctl *Controller) addContainer(pod *v1.Pod, container *v1.Container, initia
 		return
 	}
 
-	timestamp, ok := ctl.getStartTimestamp(pod, container, initialAdd)
-	if !ok {
+	if !ctl.callbacks.OnEnter(pod, container, initialAdd) {
 		return
 	}
 
-	if !ctl.callbacks.OnEnter(pod, container, initialAdd) {
+	fromTimestamp, ok := ctl.getStartTimestamp(pod, container, initialAdd)
+	if !ok {
 		return
 	}
 
 	targetPod, targetContainer := *pod, *container // Copy to avoid mutation
 
 	tailer := NewContainerTailer(ctl.client, targetPod, targetContainer,
-		ctl.callbacks.OnEvent, timestamp)
+		ctl.callbacks.OnEvent, fromTimestamp)
 	ctl.tailers[key] = tailer
 
 	go func() {
@@ -246,30 +247,31 @@ func (ctl *Controller) deleteContainer(pod *v1.Pod, container *v1.Container) {
 }
 
 func (ctl *Controller) getStartTimestamp(pod *v1.Pod, container *v1.Container, initialAdd bool) (*time.Time, bool) {
-	if ctl.SinceStart {
+	switch {
+	case ctl.SinceStart:
 		return nil, true
-	}
-
-	if initialAdd && !ctl.SinceStart {
+	case ctl.Since != nil:
+		return ctl.Since, true
+	case initialAdd:
 		// Don't show any history, but add a small amount of buffer to
 		// account for clock skew
 		now := time.Now().Add(time.Second * -5)
 		return &now, true
-	}
-
-	var t *time.Time
-	for _, status := range allContainerStatusesForPod(pod) {
-		if status.Name == container.Name && status.State.Running != nil {
-			startTime := status.State.Running.StartedAt.Time
-			if t == nil || startTime.Before(*t) {
-				t = &startTime
+	default:
+		var t *time.Time
+		for _, status := range allContainerStatusesForPod(pod) {
+			if status.Name == container.Name && status.State.Running != nil {
+				startTime := status.State.Running.StartedAt.Time
+				if t == nil || startTime.Before(*t) {
+					t = &startTime
+				}
 			}
 		}
+		if t == nil {
+			return nil, false
+		}
+		return t, true
 	}
-	if t == nil {
-		return nil, false
-	}
-	return t, true
 }
 
 func buildKey(pod *v1.Pod, container *v1.Container) string {

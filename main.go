@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sync"
 	"text/template"
+	"time"
 
 	_ "github.com/alecthomas/chroma/formatters"
 	"github.com/alecthomas/chroma/quick"
@@ -45,6 +46,7 @@ func main() {
 		raw                   bool
 		tmplString            string
 		sinceStart            bool
+		sinceExpr             string
 		showVersion           bool
 		includePatterns       []*regexp.Regexp
 		excludePatternStrings []string
@@ -74,6 +76,7 @@ func main() {
 	flags.BoolVarP(&sinceStart, "since-start", "s", false,
 		"Start reading log from the beginning of the container's lifetime.")
 	flags.BoolVarP(&showVersion, "version", "", false, "Show version.")
+	flags.StringVarP(&sinceExpr, "since", "S", "", "Get logs since a given time (e.g. 2023-03-30) or duration (e.g. 1h).")
 
 	flags.StringVar(&kubeconfigPath, "kubeconfig", cfg.KubeConfigPath,
 		"Path to kubeconfig (only required out-of-cluster)")
@@ -199,6 +202,11 @@ func main() {
 		}
 	}
 
+	since, err := parseSinceExpr(sinceExpr)
+	if err != nil {
+		fail("invalid --since flag: %s", err)
+	}
+
 	formatPod := func(pod *v1.Pod) string {
 		if allNamespaces || len(namespaces) > 1 {
 			return fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
@@ -280,6 +288,7 @@ func main() {
 			Namespaces:       namespaces,
 			InclusionMatcher: inclusionMatcher,
 			ExclusionMatcher: exclusionMatcher,
+			Since:            since,
 			SinceStart:       sinceStart,
 		},
 		Callbacks{
@@ -338,6 +347,27 @@ func fail(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("fatal: %s\n", msg))
 	os.Exit(1)
+}
+
+func parseSinceExpr(s string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	for _, layout := range []string{
+		time.ANSIC, time.UnixDate, time.RubyDate, time.RFC822, time.RFC822Z, time.RFC850, time.RFC1123,
+		time.RFC1123Z, time.RFC3339, time.RFC3339Nano, time.Kitchen, time.Stamp, time.StampMilli,
+		time.StampMicro, time.StampNano, time.DateTime, time.DateOnly, time.TimeOnly,
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return &t, nil
+		}
+	}
+	dur, err := time.ParseDuration(s)
+	if err != nil {
+		return nil, fmt.Errorf("parsing as duration: %w", err)
+	}
+	t := time.Now().Add(-dur)
+	return &t, nil
 }
 
 var (
