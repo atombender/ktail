@@ -71,8 +71,8 @@ The following variables are available:
 
 * `Timestamp`: The time of the log event.
 * `Message`: The log message.
-* `Pod`: The pod object. It has properties such as `Name`, `Namspace`, `Status`, etc.
-* `Container`: The container object. It properties such as `Name`.
+* `Pod`: The pod object. It has properties such as `Name`, `Namespace`, `Status`, etc.
+* `Container`: The container object. It has properties such as `Name`.
 
 # Installation
 
