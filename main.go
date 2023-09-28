@@ -239,7 +239,7 @@ func main() {
 				return err
 			}
 
-			_, err := fmt.Fprintln(os.Stdout, string(buf.Bytes()))
+			_, err := fmt.Fprintln(os.Stdout, buf.String())
 			return err
 		}
 	} else {
