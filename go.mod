@@ -1,6 +1,8 @@
 module github.com/atombender/ktail
 
-go 1.17
+go 1.23
+
+toolchain go1.23.0
 
 require (
 	github.com/alecthomas/chroma v0.10.0
